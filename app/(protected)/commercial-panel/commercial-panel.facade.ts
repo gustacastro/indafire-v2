@@ -5,7 +5,9 @@ import {
   updateQuoteStatus,
 } from '@/app/(protected)/quotes/quotes.facade';
 import {
+  fetchClients,
   getClientById,
+  getClientName,
   ClientContact,
 } from '@/app/(protected)/clients/clients.facade';
 import { KanbanColumnConfig, KanbanMoveActionType } from '@/types/ui/kanban.types';
@@ -41,7 +43,7 @@ const QUOTE_MOVE_RULES: Record<string, string[]> = {
 };
 
 const MOVE_ACTIONS: Record<string, KanbanMoveActionType> = {
-  'IN_ATTENDANCE->PENDING_APPROVAL': 'confirm',
+  'IN_ATTENDANCE->PENDING_APPROVAL': 'edit_first',
   'PENDING_APPROVAL->SUBMITTED': 'send_proposal',
   'DECLINED->SUBMITTED': 'send_proposal',
   'SUBMITTED->APPROVED': 'confirm',
@@ -164,4 +166,24 @@ export async function sendProposalEmail(
     selected_emails: selectedEmails,
     include_product_photos: includeProductPhotos,
   });
+}
+
+export async function createAttendance(clientId: string): Promise<void> {
+  await api.post('/quotes/create/IN_ATTENDANCE', {
+    client_id: clientId,
+    status: 'IN_ATTENDANCE',
+  });
+}
+
+export async function findClientByDocument(
+  doc: string
+): Promise<{ id: string; name: string } | null> {
+  const res = await fetchClients({ perPage: 10, search: doc });
+  const found = res.data.find((c) => {
+    if ('cnpj' in c.identity) return c.identity.cnpj === doc;
+    if ('cpf' in c.identity) return c.identity.cpf === doc;
+    return false;
+  });
+  if (!found) return null;
+  return { id: found.id, name: getClientName(found) };
 }

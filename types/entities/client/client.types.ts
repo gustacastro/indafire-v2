@@ -6,6 +6,9 @@ export interface ClientFormProps {
   mode: ClientFormMode;
   clientId?: string;
   isSupplier: boolean;
+  showSupplierCheckbox?: boolean;
+  prospection?: boolean;
+  returnTo?: string;
 }
 
 export interface ClientListProps {

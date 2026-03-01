@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button/Button';
 import { ModalConfirm } from '@/components/ui/Modal/ModalConfirm';
 import { DynamicListField } from '@/components/ui/DynamicListField/DynamicListField';
 import { ContactPersonCard } from '@/components/ui/ContactPersonCard/ContactPersonCard';
+import { Checkbox } from '@/components/ui/Checkbox/Checkbox';
 import { IconSave, IconPhone, IconMail, IconUser, IconPlus } from '@/components/icons';
 import { DynamicListItem } from '@/types/ui/dynamic-list-field.types';
 import { ContactPerson } from '@/types/ui/contact-person-card.types';
@@ -49,12 +50,14 @@ const CLIENT_TYPE_OPTIONS = [
   { value: 'PF', label: 'Pessoa Física' },
 ];
 
-export function ClientForm({ mode, clientId, isSupplier }: ClientFormProps) {
+export function ClientForm({ mode, clientId, isSupplier, showSupplierCheckbox, prospection, returnTo }: ClientFormProps) {
   const router = useRouter();
   const { hasPermission, isLoading: authLoading } = useAuth();
-  const backHref = isSupplier ? '/suppliers' : '/clients';
+  const backHref = returnTo || (isSupplier ? '/suppliers' : '/clients');
   const entityLabel = isSupplier ? 'fornecedor' : 'cliente';
   const entityLabelCap = isSupplier ? 'Fornecedor' : 'Cliente';
+
+  const [isSupplierChoice, setIsSupplierChoice] = useState(isSupplier);
 
   const canProceed = mode === 'create'
     ? hasPermission('clients', 'create')
@@ -380,18 +383,19 @@ export function ClientForm({ mode, clientId, isSupplier }: ClientFormProps) {
         }));
 
       if (clientType === 'PJ') {
+        const supplierValue = showSupplierCheckbox ? isSupplierChoice : isSupplier;
         const payload = {
           identity: {
             cnpj: rawCnpj(cnpj),
             company_name: companyName,
             company_fantasy_name: companyFantasyName,
-            company_city_registration: cityRegistration,
-            company_state_registration: isentoIe ? '' : stateRegistration,
-            tax_regime: taxRegime,
-            rate_differential: rateDifferential,
+            company_city_registration: prospection ? '' : cityRegistration,
+            company_state_registration: prospection ? '' : (isentoIe ? '' : stateRegistration),
+            tax_regime: prospection ? '' : taxRegime,
+            rate_differential: prospection ? '' : rateDifferential,
             defaulter,
-            supplier: isSupplier,
-            prospection: false,
+            supplier: supplierValue,
+            prospection: prospection ?? false,
           },
           address,
           contact: {
@@ -401,22 +405,30 @@ export function ClientForm({ mode, clientId, isSupplier }: ClientFormProps) {
             phone_number: rawPhone(phones[0].value),
             additional_phone_numbers: additionalPhones,
             website: '',
-            comercial_references: comercialReferences,
-            instagram,
-            facebook,
-            contact_persons: contactPersonsPayload,
+            comercial_references: prospection ? '' : comercialReferences,
+            instagram: prospection ? '' : instagram,
+            facebook: prospection ? '' : facebook,
+            contact_persons: prospection ? [] : contactPersonsPayload,
           },
           id: mode === 'edit' ? clientId! : '',
         };
 
         if (mode === 'create') {
-          await toast.promise(createCompanyClient(payload), {
+          const createPromise = createCompanyClient(payload);
+          toast.promise(createPromise, {
             loading: `Criando ${entityLabel}...`,
             success: `${entityLabelCap} criado com sucesso.`,
             error: (err: unknown) =>
               (err as { response?: { data?: { detail?: { message?: string } } } })
                 ?.response?.data?.detail?.message ?? `Erro ao criar ${entityLabel}.`,
           });
+          await createPromise;
+          if (returnTo) {
+            const doc = rawCnpj(cnpj);
+            const clientName = companyFantasyName || companyName;
+            router.push(`${returnTo}?newClientDoc=${doc}&newClientName=${encodeURIComponent(clientName)}`);
+            return;
+          }
         } else {
           await toast.promise(updateCompanyClient(clientId!, payload), {
             loading: 'Salvando alterações...',
@@ -427,14 +439,15 @@ export function ClientForm({ mode, clientId, isSupplier }: ClientFormProps) {
           });
         }
       } else {
+        const supplierValue = showSupplierCheckbox ? isSupplierChoice : isSupplier;
         const payload = {
           identity: {
             cpf: rawCpf(cpf),
             name: personName,
             fantasy_name: personFantasyName,
             defaulter,
-            supplier: isSupplier,
-            prospection: false,
+            supplier: supplierValue,
+            prospection: prospection ?? false,
           },
           address,
           contact: {
@@ -444,22 +457,30 @@ export function ClientForm({ mode, clientId, isSupplier }: ClientFormProps) {
             phone_number: rawPhone(phones[0].value),
             additional_phone_numbers: additionalPhones,
             website_information: '',
-            instagram,
-            facebook,
-            contact_persons: contactPersonsPayload,
+            instagram: prospection ? '' : instagram,
+            facebook: prospection ? '' : facebook,
+            contact_persons: prospection ? [] : contactPersonsPayload,
           },
           id: mode === 'edit' ? clientId! : '',
           code: mode === 'edit' ? code : '',
         };
 
         if (mode === 'create') {
-          await toast.promise(createIndividualClient(payload), {
+          const createPromise = createIndividualClient(payload);
+          toast.promise(createPromise, {
             loading: `Criando ${entityLabel}...`,
             success: `${entityLabelCap} criado com sucesso.`,
             error: (err: unknown) =>
               (err as { response?: { data?: { detail?: { message?: string } } } })
                 ?.response?.data?.detail?.message ?? `Erro ao criar ${entityLabel}.`,
           });
+          await createPromise;
+          if (returnTo) {
+            const doc = rawCpf(cpf);
+            const clientName = personName;
+            router.push(`${returnTo}?newClientDoc=${doc}&newClientName=${encodeURIComponent(clientName)}`);
+            return;
+          }
         } else {
           await toast.promise(updateIndividualClient(clientId!, payload), {
             loading: 'Salvando alterações...',
@@ -556,17 +577,35 @@ export function ClientForm({ mode, clientId, isSupplier }: ClientFormProps) {
   return (
     <form onSubmit={handleSubmit}>
       <FormHeader
-        backHref={backHref}
+        backHref={returnTo || (isSupplier ? '/suppliers' : '/clients')}
         onBackClick={(e) => { e.preventDefault(); setShowDiscardModal(true); }}
-        title={mode === 'create' ? `Criar ${entityLabel}` : `Editar ${entityLabel}`}
+        title={
+          prospection
+            ? 'Novo Cliente em Prospecção'
+            : mode === 'create'
+              ? `Criar ${entityLabel}`
+              : `Editar ${entityLabel}`
+        }
         description={
-          mode === 'create'
-            ? `Preencha os dados cadastrais, endereço e informações de contato do ${entityLabel}.`
-            : `Atualize os dados do ${entityLabel}.`
+          prospection
+            ? 'Preencha os dados básicos do cliente em prospecção.'
+            : mode === 'create'
+              ? `Preencha os dados cadastrais, endereço e informações de contato do ${entityLabel}.`
+              : `Atualize os dados do ${entityLabel}.`
         }
       />
 
       <div className="flex flex-col gap-6">
+        {showSupplierCheckbox && mode === 'create' && (
+          <div className="bg-secondary border border-border rounded-lg p-(--spacing-md)">
+            <Checkbox
+              checked={isSupplierChoice}
+              onChange={setIsSupplierChoice}
+              label="Este cliente é fornecedor"
+            />
+          </div>
+        )}
+
         <FormSection title="Dados Principais">
           <div className="flex flex-col gap-6">
             <PillSelector
@@ -625,48 +664,52 @@ export function ClientForm({ mode, clientId, isSupplier }: ClientFormProps) {
                   error={companyFantasyNameError}
                   onBlur={() => { if (!companyFantasyName.trim()) setCompanyFantasyNameError('Nome Fantasia é obrigatório.'); }}
                 />
-                <FormField
-                  label="Inscrição Municipal"
-                  type="text"
-                  value={cityRegistration}
-                  onChange={(e) => setCityRegistration(e.target.value)}
-                  placeholder="Inscrição municipal"
-                  maxLength={15}
-                  showCount
-                />
-                <FormField
-                  label="Inscrição Estadual"
-                  type="text"
-                  value={stateRegistration}
-                  onChange={(e) => setStateRegistration(e.target.value)}
-                  placeholder={isentoIe ? 'ISENTO' : 'Inscrição estadual'}
-                  disabled={isentoIe}
-                  maxLength={15}
-                  showCount
-                  inlineSwitch={{
-                    checked: isentoIe,
-                    onChange: setIsentoIe,
-                    label: 'Isento',
-                  }}
-                />
-                <FormField
-                  label="Regime Tributário"
-                  type="text"
-                  value={taxRegime}
-                  onChange={(e) => setTaxRegime(e.target.value)}
-                  placeholder="Ex: Simples Nacional"
-                  maxLength={20}
-                  showCount
-                />
-                <FormField
-                  label="Diferencial de Alíquota"
-                  type="text"
-                  value={rateDifferential}
-                  onChange={(e) => setRateDifferential(e.target.value)}
-                  placeholder="Diferencial"
-                  maxLength={20}
-                  showCount
-                />
+                {!prospection && (
+                  <>
+                    <FormField
+                      label="Inscrição Municipal"
+                      type="text"
+                      value={cityRegistration}
+                      onChange={(e) => setCityRegistration(e.target.value)}
+                      placeholder="Inscrição municipal"
+                      maxLength={15}
+                      showCount
+                    />
+                    <FormField
+                      label="Inscrição Estadual"
+                      type="text"
+                      value={stateRegistration}
+                      onChange={(e) => setStateRegistration(e.target.value)}
+                      placeholder={isentoIe ? 'ISENTO' : 'Inscrição estadual'}
+                      disabled={isentoIe}
+                      maxLength={15}
+                      showCount
+                      inlineSwitch={{
+                        checked: isentoIe,
+                        onChange: setIsentoIe,
+                        label: 'Isento',
+                      }}
+                    />
+                    <FormField
+                      label="Regime Tributário"
+                      type="text"
+                      value={taxRegime}
+                      onChange={(e) => setTaxRegime(e.target.value)}
+                      placeholder="Ex: Simples Nacional"
+                      maxLength={20}
+                      showCount
+                    />
+                    <FormField
+                      label="Diferencial de Alíquota"
+                      type="text"
+                      value={rateDifferential}
+                      onChange={(e) => setRateDifferential(e.target.value)}
+                      placeholder="Diferencial"
+                      maxLength={20}
+                      showCount
+                    />
+                  </>
+                )}
               </FormGrid>
             )}
 
@@ -706,15 +749,17 @@ export function ClientForm({ mode, clientId, isSupplier }: ClientFormProps) {
                     onBlur={() => { if (!personName.trim()) setPersonNameError('Nome Completo é obrigatório.'); }}
                   />
                 </div>
-                <div className="sm:col-span-2">
-                  <FormField
-                    label="Nome Fantasia (Opcional)"
-                    type="text"
-                    value={personFantasyName}
-                    onChange={(e) => setPersonFantasyName(e.target.value)}
-                    placeholder="Apelido ou nome comercial"
-                  />
-                </div>
+                {!prospection && (
+                  <div className="sm:col-span-2">
+                    <FormField
+                      label="Nome Fantasia (Opcional)"
+                      type="text"
+                      value={personFantasyName}
+                      onChange={(e) => setPersonFantasyName(e.target.value)}
+                      placeholder="Apelido ou nome comercial"
+                    />
+                  </div>
+                )}
               </FormGrid>
             )}
           </div>
@@ -816,80 +861,84 @@ export function ClientForm({ mode, clientId, isSupplier }: ClientFormProps) {
               {emailError && <p className="text-xs text-destructive mt-1">{emailError}</p>}
             </div>
 
-            <div className="lg:col-span-2 pt-6 border-t border-border">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-heading flex items-center gap-2">
-                  Pessoas Relacionadas / Responsáveis
-                </h3>
-                <Button
-                  type="button"
-                  variant="brand-outline"
-                  size="sm"
-                  iconLeft={<IconPlus size={13} />}
-                  onClick={addContactPerson}
-                >
-                  Adicionar
-                </Button>
+            {!prospection && (
+              <div className="lg:col-span-2 pt-6 border-t border-border">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-heading flex items-center gap-2">
+                    Pessoas Relacionadas / Responsáveis
+                  </h3>
+                  <Button
+                    type="button"
+                    variant="brand-outline"
+                    size="sm"
+                    iconLeft={<IconPlus size={13} />}
+                    onClick={addContactPerson}
+                  >
+                    Adicionar
+                  </Button>
+                </div>
+                <div className="space-y-4">
+                  {contactPersons.map((person, idx) => (
+                    <ContactPersonCard
+                      key={idx}
+                      person={person}
+                      onChange={(p) => updateContactPerson(idx, p)}
+                      onRemove={() => removeContactPerson(idx)}
+                      canRemove={contactPersons.length > 1}
+                    />
+                  ))}
+                </div>
               </div>
-              <div className="space-y-4">
-                {contactPersons.map((person, idx) => (
-                  <ContactPersonCard
-                    key={idx}
-                    person={person}
-                    onChange={(p) => updateContactPerson(idx, p)}
-                    onRemove={() => removeContactPerson(idx)}
-                    canRemove={contactPersons.length > 1}
-                  />
-                ))}
-              </div>
-            </div>
+            )}
           </div>
         </FormSection>
 
-        <FormSection title="Redes Sociais e Status">
-          <FormGrid>
-            <FormField
-              label="Instagram"
-              type="text"
-              value={instagram}
-              onChange={(e) => setInstagram(e.target.value)}
-              placeholder="@instagram"
-            />
-            <FormField
-              label="Facebook"
-              type="text"
-              value={facebook}
-              onChange={(e) => setFacebook(e.target.value)}
-              placeholder="facebook.com/usuario"
-            />
-            {isSupplier && (
+        {!prospection && (
+          <FormSection title="Redes Sociais e Status">
+            <FormGrid>
+              <FormField
+                label="Instagram"
+                type="text"
+                value={instagram}
+                onChange={(e) => setInstagram(e.target.value)}
+                placeholder="@instagram"
+              />
+              <FormField
+                label="Facebook"
+                type="text"
+                value={facebook}
+                onChange={(e) => setFacebook(e.target.value)}
+                placeholder="facebook.com/usuario"
+              />
+              {isSupplier && (
+                <div className="sm:col-span-2">
+                  <TextArea
+                    label="Referências Comerciais"
+                    value={comercialReferences}
+                    onChange={(e) => setComercialReferences(e.target.value)}
+                    placeholder="Referências comerciais do fornecedor..."
+                    rows={3}
+                  />
+                </div>
+              )}
               <div className="sm:col-span-2">
-                <TextArea
-                  label="Referências Comerciais"
-                  value={comercialReferences}
-                  onChange={(e) => setComercialReferences(e.target.value)}
-                  placeholder="Referências comerciais do fornecedor..."
-                  rows={3}
+                <SwitchCard
+                  checked={!defaulter}
+                  onChange={(v) => {
+                    if (mode === 'edit') {
+                      handleStatusToggle();
+                    } else {
+                      setDefaulter(!v);
+                    }
+                  }}
+                  title="Status"
+                  description="O cliente está marcado como inativo."
+                  activeDescription="O cliente está ativo e em dia."
                 />
               </div>
-            )}
-            <div className="sm:col-span-2">
-              <SwitchCard
-                checked={!defaulter}
-                onChange={(v) => {
-                  if (mode === 'edit') {
-                    handleStatusToggle();
-                  } else {
-                    setDefaulter(!v);
-                  }
-                }}
-                title="Status"
-                description="O cliente está marcado como inativo."
-                activeDescription="O cliente está ativo e em dia."
-              />
-            </div>
-          </FormGrid>
-        </FormSection>
+            </FormGrid>
+          </FormSection>
+        )}
 
         <div className="flex items-center justify-end gap-3 pb-8">
           <Button

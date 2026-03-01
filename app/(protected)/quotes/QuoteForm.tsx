@@ -181,11 +181,16 @@ export function QuoteForm({ mode, quoteId }: QuoteFormProps) {
           unitary_value: maskCurrencyInput(String(j.unitary_value)),
         })),
       );
-      setDeliveryDate(enriched.detail.expected_delivery_date);
+      setDeliveryDate(enriched.detail.expected_delivery_date ?? '');
       setFreight(enriched.detail.freight > 0 ? maskCurrencyInput(String(enriched.detail.freight)) : '');
-      setPaymentMethodId(enriched.detail.payment_method_id);
+      setPaymentMethodId(enriched.detail.payment_method_id ?? '');
       setDiscount(enriched.detail.discount_percentage > 0 ? maskPercentageInput(String(enriched.detail.discount_percentage)) : '');
-      setCurrentStep(4);
+
+      if (enriched.detail.status === 'IN_ATTENDANCE') {
+        setCurrentStep(enriched.products.length > 0 || enriched.jobs.length > 0 ? 2 : 2);
+      } else {
+        setCurrentStep(4);
+      }
     } catch {
       toast.error('Erro ao carregar orçamento.');
       router.push(returnTo);

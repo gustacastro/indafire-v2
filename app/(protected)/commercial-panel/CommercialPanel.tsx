@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useKanban } from '@/hooks/useKanban';
@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/Button/Button';
 import { ModalConfirm } from '@/components/ui/Modal/ModalConfirm';
 import { SendProposalModal } from '@/components/ui/Modal/SendProposalModal';
 import { TextArea } from '@/components/ui/TextArea/TextArea';
-import { IconStore, IconPlus, IconEdit, IconTrash } from '@/components/icons';
+import { ItemSelectorPanel } from '@/components/ui/ItemSelector/ItemSelectorPanel';
+import { IconStore, IconPlus, IconEdit, IconTrash, IconUser, IconUserCheck } from '@/components/icons';
 import { QuoteKanbanCard as QuoteKanbanCardType } from '@/types/entities/quote/quote-kanban.types';
 import { KanbanCardComponentProps } from '@/types/ui/kanban.types';
 import { QuoteKanbanCard } from './QuoteKanbanCard';
@@ -24,8 +25,16 @@ import {
   updateQuoteStatus,
   sendProposalWhatsapp,
   sendProposalEmail,
+  createAttendance,
+  findClientByDocument,
 } from './commercial-panel.facade';
 import { deleteQuote } from '@/app/(protected)/quotes/quotes.facade';
+import {
+  fetchClients,
+  getClientName,
+  getClientDocument,
+  Client,
+} from '@/app/(protected)/clients/clients.facade';
 
 interface PendingMove {
   card: QuoteKanbanCardType;
@@ -36,6 +45,7 @@ interface PendingMove {
 
 export function CommercialPanel() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, hasPermission, isLoading: authLoading } = useAuth();
   const canView = hasPermission('quotes', 'view');
   const canCreate = hasPermission('quotes', 'create');
@@ -68,9 +78,55 @@ export function CommercialPanel() {
   const [sendProposalModal, setSendProposalModal] = useState<PendingMove | null>(null);
   const [sendProposalLoading, setSendProposalLoading] = useState(false);
 
+  const [clientSearchOpen, setClientSearchOpen] = useState(false);
+  const [clientSearchValue, setClientSearchValue] = useState('');
+  const [clientResults, setClientResults] = useState<Client[]>([]);
+  const [clientSearchLoading, setClientSearchLoading] = useState(false);
+  const [selectedAttendanceClient, setSelectedAttendanceClient] = useState<Client | null>(null);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const clientDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [newClientConfirm, setNewClientConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [newClientConfirmLoading, setNewClientConfirmLoading] = useState(false);
+
+  const [editBeforeMoveModal, setEditBeforeMoveModal] = useState<{ quoteId: string; quoteCode: number } | null>(null);
+  const [moveAfterEditConfirm, setMoveAfterEditConfirm] = useState<{ quoteId: string; quoteCode: number } | null>(null);
+  const [moveAfterEditLoading, setMoveAfterEditLoading] = useState(false);
+
   useEffect(() => {
     if (!authLoading && !canView) router.replace('/dashboard');
   }, [authLoading, canView, router]);
+
+  useEffect(() => {
+    const newClientDoc = searchParams.get('newClientDoc');
+    const newClientName = searchParams.get('newClientName');
+    const editedQuoteId = searchParams.get('editedQuoteId');
+    const editedQuoteCode = searchParams.get('editedQuoteCode');
+
+    if (editedQuoteId && editedQuoteCode) {
+      window.history.replaceState({}, '', '/commercial-panel');
+      setMoveAfterEditConfirm({
+        quoteId: editedQuoteId,
+        quoteCode: Number(editedQuoteCode),
+      });
+      return;
+    }
+
+    if (newClientDoc && newClientName) {
+      window.history.replaceState({}, '', '/commercial-panel');
+      findClientByDocument(newClientDoc)
+        .then((result) => {
+          if (result) {
+            setNewClientConfirm({ id: result.id, name: result.name });
+          } else {
+            toast.error('Cliente criado, mas não foi possível localizá-lo para criar o atendimento.');
+          }
+        })
+        .catch(() => {
+          toast.error('Erro ao buscar cliente criado.');
+        });
+    }
+  }, [searchParams]);
 
   const loadData = useCallback(async (search?: string) => {
     if (!canView) return;
@@ -95,6 +151,110 @@ export function CommercialPanel() {
     searchTimerRef.current = setTimeout(() => {
       loadData(value || undefined);
     }, 500);
+  }
+
+  const loadClientSearch = useCallback(async (search: string) => {
+    setClientSearchLoading(true);
+    try {
+      const res = await fetchClients({ perPage: 10, search: search || undefined });
+      setClientResults(res.data);
+    } catch {
+      toast.error('Erro ao buscar clientes.');
+    } finally {
+      setClientSearchLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!clientSearchOpen) return;
+    if (clientDebounceRef.current) clearTimeout(clientDebounceRef.current);
+
+    if (clientSearchValue.length === 0) {
+      loadClientSearch('');
+    } else if (clientSearchValue.length >= 2) {
+      clientDebounceRef.current = setTimeout(() => {
+        loadClientSearch(clientSearchValue);
+      }, 400);
+    }
+
+    return () => {
+      if (clientDebounceRef.current) clearTimeout(clientDebounceRef.current);
+    };
+  }, [clientSearchValue, clientSearchOpen, loadClientSearch]);
+
+  function handleOpenClientSearch() {
+    setClientSearchValue('');
+    setSelectedAttendanceClient(null);
+    setClientResults([]);
+    setClientSearchOpen(true);
+  }
+
+  function handleSelectAttendanceClient(client: Client) {
+    setSelectedAttendanceClient((prev) => prev?.id === client.id ? null : client);
+  }
+
+  async function handleCreateAttendance() {
+    if (!selectedAttendanceClient) return;
+    setAttendanceLoading(true);
+    try {
+      await toast.promise(createAttendance(selectedAttendanceClient.id), {
+        loading: 'Criando atendimento...',
+        success: 'Atendimento criado com sucesso.',
+        error: (err: unknown) =>
+          (err as { response?: { data?: { detail?: { message?: string } } } })
+            ?.response?.data?.detail?.message ?? 'Erro ao criar atendimento.',
+      });
+      setClientSearchOpen(false);
+      setSelectedAttendanceClient(null);
+      await loadData(searchValue || undefined);
+    } catch {
+      //
+    } finally {
+      setAttendanceLoading(false);
+    }
+  }
+
+  async function handleNewClientConfirm() {
+    if (!newClientConfirm) return;
+    setNewClientConfirmLoading(true);
+    try {
+      await toast.promise(createAttendance(newClientConfirm.id), {
+        loading: 'Criando atendimento...',
+        success: 'Atendimento criado com sucesso.',
+        error: (err: unknown) =>
+          (err as { response?: { data?: { detail?: { message?: string } } } })
+            ?.response?.data?.detail?.message ?? 'Erro ao criar atendimento.',
+      });
+      await loadData(searchValue || undefined);
+    } catch {
+      //
+    } finally {
+      setNewClientConfirmLoading(false);
+      setNewClientConfirm(null);
+    }
+  }
+
+  async function handleMoveAfterEdit() {
+    if (!moveAfterEditConfirm) return;
+    setMoveAfterEditLoading(true);
+    try {
+      await toast.promise(
+        updateQuoteStatus(moveAfterEditConfirm.quoteId, 'PENDING_APPROVAL'),
+        {
+          loading: 'Movendo orçamento...',
+          success: 'Orçamento movido para Orçamento com sucesso.',
+          error: (err: unknown) =>
+            (err as { response?: { data?: { detail?: { message?: string } } } })
+              ?.response?.data?.detail?.message ?? 'Erro ao mover orçamento.',
+        }
+      );
+      await loadData(searchValue || undefined);
+    } catch {
+      //
+    } finally {
+      setMoveAfterEditLoading(false);
+      setMoveAfterEditConfirm(null);
+    }
   }
 
   async function executeMoveWithApi(
@@ -134,6 +294,11 @@ export function CommercialPanel() {
     if (!targetStatus) return;
 
     const actionType = getMoveActionType(card.status, targetStatus);
+
+    if (actionType === 'edit_first') {
+      setEditBeforeMoveModal({ quoteId: card.id, quoteCode: card.quoteCode });
+      return;
+    }
 
     if (actionType === 'send_proposal') {
       setSendProposalModal({ card, sourceColId, targetColId, targetStatus });
@@ -319,7 +484,13 @@ export function CommercialPanel() {
         onToggleExpand={() => toggleCard(props.card.id)}
         onDeclineRequest={handleDeclineRequest}
         onViewRequest={(card) => setViewPanelId(card.id)}
-        onEditRequest={canEdit ? (card) => router.push(`/quotes/${card.id}/edit?returnTo=/commercial-panel`) : undefined}
+        onEditRequest={canEdit ? (card) => {
+          if (card.status === 'IN_ATTENDANCE') {
+            router.push(`/quotes/${card.id}/edit?returnTo=${encodeURIComponent(`/commercial-panel?editedQuoteId=${card.id}&editedQuoteCode=${card.quoteCode}`)}`);
+          } else {
+            router.push(`/quotes/${card.id}/edit?returnTo=/commercial-panel`);
+          }
+        } : undefined}
         onDeleteRequest={canDelete ? (card) => setDeleteTarget(card) : undefined}
       />
     );
@@ -327,12 +498,27 @@ export function CommercialPanel() {
 
   if (authLoading || (!authLoading && !canView)) return null;
 
-  const displayColumns = showAll
+  const attendanceHeaderAction = canCreate ? (
+    <button
+      type="button"
+      onClick={handleOpenClientSearch}
+      className="w-6 h-6 flex items-center justify-center rounded-md bg-primary text-primary-fg hover:bg-primary/90 transition-colors"
+      title="Criar atendimento"
+    >
+      <IconPlus size={14} />
+    </button>
+  ) : undefined;
+
+  const displayColumns = (showAll
     ? columns
     : columns.map((col) => ({
         ...col,
         cards: col.cards.filter((c) => c.creatorId === user?.id),
-      }));
+      }))
+  ).map((col) => ({
+    ...col,
+    headerAction: col.id === 'col-attendance' ? attendanceHeaderAction : undefined,
+  }));
 
   const userCardCount = columns.reduce(
     (acc, col) => acc + col.cards.filter((c) => c.creatorId === user?.id).length,
@@ -403,7 +589,14 @@ export function CommercialPanel() {
                   variant: 'primary' as const,
                   icon: <IconEdit size={16} />,
                   onClick: () => {
-                    if (viewPanelId) { router.push(`/quotes/${viewPanelId}/edit?returnTo=/commercial-panel`); setViewPanelId(null); }
+                    if (viewPanelId && viewCard) {
+                      const isAttendance = viewCard.status === 'IN_ATTENDANCE';
+                      const returnUrl = isAttendance
+                        ? `/commercial-panel?editedQuoteId=${viewCard.id}&editedQuoteCode=${viewCard.quoteCode}`
+                        : '/commercial-panel';
+                      router.push(`/quotes/${viewPanelId}/edit?returnTo=${encodeURIComponent(returnUrl)}`);
+                      setViewPanelId(null);
+                    }
                   },
                 }]
               : []),
@@ -443,8 +636,6 @@ export function CommercialPanel() {
         cancelLabel="Cancelar"
         onConfirm={handleConfirmMove}
         confirmLoading={confirmLoading}
-        requireConfirmation
-        requireConfirmationLabel="Confirmo que desejo mover este orçamento"
       />
 
       <ModalConfirm
@@ -467,8 +658,6 @@ export function CommercialPanel() {
         cancelLabel="Cancelar"
         onConfirm={handleDeclineConfirm}
         confirmLoading={declineLoading}
-        requireConfirmation
-        requireConfirmationLabel="Confirmo que desejo recusar esta proposta"
       >
         <div className="mt-(--spacing-sm)">
           <TextArea
@@ -501,6 +690,139 @@ export function CommercialPanel() {
         confirmLoading={deleteLoading}
         requireConfirmation
         requireConfirmationLabel="Confirmo que desejo excluir este orçamento"
+      />
+
+      <ItemSelectorPanel<Client>
+        isOpen={clientSearchOpen}
+        onClose={() => {
+          setClientSearchOpen(false);
+          setSelectedAttendanceClient(null);
+          setClientSearchValue('');
+        }}
+        title="Selecionar Cliente"
+        items={clientResults}
+        isLoading={clientSearchLoading}
+        selectedIds={selectedAttendanceClient ? [selectedAttendanceClient.id] : []}
+        onToggle={handleSelectAttendanceClient}
+        getId={(c) => c.id}
+        renderItem={(c) => (
+          <div>
+            <h3 className="font-bold text-sm text-foreground">{getClientName(c)}</h3>
+            <p className="text-xs text-muted mt-0.5">
+              {getClientDocument(c)}
+              {c.identity.supplier && ' · Fornecedor'}
+            </p>
+          </div>
+        )}
+        searchValue={clientSearchValue}
+        onSearchChange={setClientSearchValue}
+        mode="single"
+        closeOnSelect={false}
+        footerButtons={[
+          {
+            label: 'Criar Atendimento',
+            variant: 'primary',
+            icon: <IconPlus size={16} />,
+            onClick: handleCreateAttendance,
+            disabled: !selectedAttendanceClient || attendanceLoading,
+          },
+        ]}
+        noResultsContent={
+          clientSearchValue.length >= 2 ? (
+            <div className="flex flex-col gap-3">
+              <p className="text-sm text-muted text-center mb-2">
+                Nenhum cliente encontrado. Deseja criar um novo?
+              </p>
+              <Button
+                variant="primary"
+                fullWidth
+                iconLeft={<IconUser size={16} />}
+                onClick={() => {
+                  setClientSearchOpen(false);
+                  router.push('/clients/create?returnTo=/commercial-panel&fromKanban=true');
+                }}
+              >
+                Criar Cliente Completo
+              </Button>
+              <Button
+                variant="outline"
+                fullWidth
+                iconLeft={<IconUserCheck size={16} />}
+                onClick={() => {
+                  setClientSearchOpen(false);
+                  router.push('/clients/create?returnTo=/commercial-panel&fromKanban=true&prospection=true');
+                }}
+              >
+                Criar Cliente em Prospecção
+              </Button>
+            </div>
+          ) : undefined
+        }
+      />
+
+      <ModalConfirm
+        isOpen={!!newClientConfirm}
+        onClose={() => setNewClientConfirm(null)}
+        variant="info"
+        title="Criar Atendimento"
+        description={
+          newClientConfirm ? (
+            <>
+              Deseja criar um atendimento para o cliente{' '}
+              <span className="font-bold">{newClientConfirm.name}</span>?
+            </>
+          ) : ''
+        }
+        confirmLabel="Criar Atendimento"
+        cancelLabel="Cancelar"
+        onConfirm={handleNewClientConfirm}
+        confirmLoading={newClientConfirmLoading}
+      />
+
+      <ModalConfirm
+        isOpen={!!editBeforeMoveModal}
+        onClose={() => setEditBeforeMoveModal(null)}
+        variant="info"
+        title="Editar orçamento"
+        description={
+          editBeforeMoveModal ? (
+            <>
+              O orçamento{' '}
+              <span className="font-bold">#{editBeforeMoveModal.quoteCode}</span> está em
+              atendimento e precisa ser preenchido antes de ser movido para Orçamento.
+              Deseja editar agora?
+            </>
+          ) : ''
+        }
+        confirmLabel="Editar orçamento"
+        cancelLabel="Cancelar"
+        onConfirm={() => {
+          if (editBeforeMoveModal) {
+            const returnUrl = `/commercial-panel?editedQuoteId=${editBeforeMoveModal.quoteId}&editedQuoteCode=${editBeforeMoveModal.quoteCode}`;
+            router.push(`/quotes/${editBeforeMoveModal.quoteId}/edit?returnTo=${encodeURIComponent(returnUrl)}`);
+            setEditBeforeMoveModal(null);
+          }
+        }}
+      />
+
+      <ModalConfirm
+        isOpen={!!moveAfterEditConfirm}
+        onClose={() => setMoveAfterEditConfirm(null)}
+        variant="info"
+        title="Mover para Orçamento"
+        description={
+          moveAfterEditConfirm ? (
+            <>
+              Deseja mover o orçamento{' '}
+              <span className="font-bold">#{moveAfterEditConfirm.quoteCode}</span> para a
+              coluna Orçamento?
+            </>
+          ) : ''
+        }
+        confirmLabel="Mover para Orçamento"
+        cancelLabel="Cancelar"
+        onConfirm={handleMoveAfterEdit}
+        confirmLoading={moveAfterEditLoading}
       />
     </div>
   );

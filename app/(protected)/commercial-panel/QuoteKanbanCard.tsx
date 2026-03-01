@@ -140,9 +140,15 @@ export function QuoteKanbanCard({
             </h3>
           </div>
           <div className="text-right">
-            <span className="text-sm md:text-base font-black text-success block whitespace-nowrap">
-              {formatApiCurrency(card.netValue)}
-            </span>
+            {card.status === 'IN_ATTENDANCE' ? (
+              <span className="text-xs font-semibold text-muted block whitespace-nowrap">
+                Em atendimento
+              </span>
+            ) : (
+              <span className="text-sm md:text-base font-black text-success block whitespace-nowrap">
+                {formatApiCurrency(card.netValue)}
+              </span>
+            )}
           </div>
         </div>
 
@@ -172,31 +178,35 @@ export function QuoteKanbanCard({
 
       {isExpanded && (
         <div className="px-(--spacing-sm) pb-(--spacing-sm) pt-(--spacing-xs) md:px-(--spacing-md) md:pb-(--spacing-md) md:pt-(--spacing-sm) border-t border-border bg-secondary/50">
-          <div className="grid grid-cols-2 gap-y-(--spacing-sm) gap-x-(--spacing-sm)">
-            <div>
-              <p className="text-[10px] text-muted uppercase font-bold flex items-center gap-1 mb-1">
-                <IconHash size={12} /> Código
-              </p>
-              <p className="text-xs text-foreground font-mono">#{card.quoteCode}</p>
-            </div>
+          {card.status === 'IN_ATTENDANCE' ? (
+            <p className="text-xs text-muted text-center py-2">Em atendimento</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-y-(--spacing-sm) gap-x-(--spacing-sm)">
+              <div>
+                <p className="text-[10px] text-muted uppercase font-bold flex items-center gap-1 mb-1">
+                  <IconHash size={12} /> Código
+                </p>
+                <p className="text-xs text-foreground font-mono">#{card.quoteCode}</p>
+              </div>
 
-            <div>
-              <p className="text-[10px] text-muted uppercase font-bold flex items-center gap-1 mb-1">
-                <IconCalendar size={12} /> Entrega
-              </p>
-              <p className="text-xs text-foreground font-medium">{card.deliveryDate}</p>
-            </div>
+              <div>
+                <p className="text-[10px] text-muted uppercase font-bold flex items-center gap-1 mb-1">
+                  <IconCalendar size={12} /> Entrega
+                </p>
+                <p className="text-xs text-foreground font-medium">{card.deliveryDate}</p>
+              </div>
 
-            <div className="col-span-2">
-              <p className="text-[10px] text-muted uppercase font-bold flex items-center gap-1 mb-1">
-                <IconCreditCard size={12} /> Pagamento
-              </p>
-              <p className="text-xs text-foreground font-medium">
-                {card.paymentMethodName}
-                {card.installments > 0 ? ` — ${card.installments}x` : ' — À vista'}
-              </p>
+              <div className="col-span-2">
+                <p className="text-[10px] text-muted uppercase font-bold flex items-center gap-1 mb-1">
+                  <IconCreditCard size={12} /> Pagamento
+                </p>
+                <p className="text-xs text-foreground font-medium">
+                  {card.paymentMethodName}
+                  {card.installments > 0 ? ` — ${card.installments}x` : ' — À vista'}
+                </p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>

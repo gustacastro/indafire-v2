@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { CommercialPanel } from './CommercialPanel';
 
 export const metadata: Metadata = {
@@ -6,5 +7,9 @@ export const metadata: Metadata = {
 };
 
 export default function CommercialPanelPage() {
-  return <CommercialPanel />;
+  return (
+    <Suspense>
+      <CommercialPanel />
+    </Suspense>
+  );
 }

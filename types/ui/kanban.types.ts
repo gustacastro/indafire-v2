@@ -11,9 +11,10 @@ export interface KanbanColumnConfig<TCard extends KanbanBaseCard> {
   statuses: string[];
   color: string;
   cards: TCard[];
+  headerAction?: ReactNode;
 }
 
-export type KanbanMoveActionType = 'confirm' | 'reason' | 'send_proposal' | null;
+export type KanbanMoveActionType = 'confirm' | 'reason' | 'send_proposal' | 'edit_first' | null;
 
 export interface KanbanMoveResult {
   allowed: boolean;

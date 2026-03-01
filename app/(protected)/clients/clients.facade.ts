@@ -201,13 +201,40 @@ export async function getClientById(id: string): Promise<Client> {
   return data.data;
 }
 
-export async function createCompanyClient(payload: CreateCompanyPayload): Promise<void> {
-  await api.post('/clients/company', payload);
+export interface CreateClientResponse {
+  client?: {
+    client_id?: string;
+    name?: string;
+    company_fantasy_name?: string;
+    company_name?: string;
+  };
+  data?: {
+    client?: {
+      client_id?: string;
+      name?: string;
+      company_fantasy_name?: string;
+      company_name?: string;
+    };
+  };
 }
 
-export async function createIndividualClient(payload: CreateIndividualPayload): Promise<void> {
-  await proxyApi.post('/clients/individual', payload);
+function extractClientFromResponse(res: CreateClientResponse): { client_id: string; name?: string; company_fantasy_name?: string; company_name?: string } | null {
+  const client = res?.client ?? res?.data?.client;
+  if (client?.client_id) return client as { client_id: string; name?: string; company_fantasy_name?: string; company_name?: string };
+  return null;
 }
+
+export async function createCompanyClient(payload: CreateCompanyPayload): Promise<CreateClientResponse> {
+  const { data } = await api.post('/clients/company', payload);
+  return data;
+}
+
+export async function createIndividualClient(payload: CreateIndividualPayload): Promise<CreateClientResponse> {
+  const { data } = await proxyApi.post('/clients/individual', payload);
+  return data;
+}
+
+export { extractClientFromResponse };
 
 export async function updateCompanyClient(id: string, payload: CreateCompanyPayload): Promise<void> {
   await api.put(`/clients/company/${id}`, payload);

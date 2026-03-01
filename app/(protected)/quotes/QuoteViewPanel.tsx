@@ -150,9 +150,11 @@ export function QuoteViewPanel({ quoteId, isOpen, onClose, footerButtons }: Quot
                   />
                 </div>
               </InfoItem>
-              <InfoItem icon={<IconCalendar size={16} />} label="Entrega prevista">
-                <InfoValue>{formatDateBR(quote.detail.expected_delivery_date)}</InfoValue>
-              </InfoItem>
+              {quote.detail.status !== 'IN_ATTENDANCE' && (
+                <InfoItem icon={<IconCalendar size={16} />} label="Entrega prevista">
+                  <InfoValue>{formatDateBR(quote.detail.expected_delivery_date)}</InfoValue>
+                </InfoItem>
+              )}
             </ViewSection>
 
             <ViewDivider />
@@ -169,68 +171,85 @@ export function QuoteViewPanel({ quoteId, isOpen, onClose, footerButtons }: Quot
               </InfoItem>
             </ViewSection>
 
-            <QuoteItemsSection
-              title="Produtos"
-              items={quote.products.map((p) => ({
-                id: p.product.id,
-                name: p.product.info.name,
-                amount: p.amount,
-                unitary_value: p.unitary_value,
-                images: Object.values(p.product.files ?? {}),
-              }))}
-              onImageClick={openGallery}
-            />
+            {quote.detail.status === 'IN_ATTENDANCE' ? (
+              <>
+                <ViewDivider />
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="w-12 h-12 rounded-(--radius-full) bg-muted/10 flex items-center justify-center mb-3">
+                    <IconUser size={24} className="text-muted" />
+                  </div>
+                  <p className="text-sm font-semibold text-muted">Em atendimento</p>
+                  <p className="text-xs text-muted mt-1">
+                    Este orçamento ainda está em fase de atendimento. Edite-o para adicionar produtos, serviços e valores.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <QuoteItemsSection
+                  title="Produtos"
+                  items={quote.products.map((p) => ({
+                    id: p.product.id,
+                    name: p.product.info.name,
+                    amount: p.amount,
+                    unitary_value: p.unitary_value,
+                    images: Object.values(p.product.files ?? {}),
+                  }))}
+                  onImageClick={openGallery}
+                />
 
-            <QuoteItemsSection
-              title="Serviços"
-              items={quote.jobs.map((j) => ({
-                id: j.job.id,
-                name: j.job.service_name,
-                amount: j.amount,
-                unitary_value: j.unitary_value,
-              }))}
-            />
+                <QuoteItemsSection
+                  title="Serviços"
+                  items={quote.jobs.map((j) => ({
+                    id: j.job.id,
+                    name: j.job.service_name,
+                    amount: j.amount,
+                    unitary_value: j.unitary_value,
+                  }))}
+                />
 
-            <ViewDivider />
+                <ViewDivider />
 
-            <ViewSection title="Financeiro">
-              <InfoItem icon={<IconCreditCard size={16} />} label="Meio de pagamento">
-                <InfoValue>{quote.paymentMethod.name}</InfoValue>
-              </InfoItem>
-              <InfoItem icon={<IconCreditCard size={16} />} label="Parcelas">
-                <InfoValue>{quote.detail.installments > 0 ? `${quote.detail.installments}x` : 'À vista'}</InfoValue>
-              </InfoItem>
-              {quote.detail.installments > 0 && (
-                <InfoItem icon={<IconCreditCard size={16} />} label="Valor por parcela">
-                  <InfoValue>
-                    <span className="font-bold text-foreground">
-                      {formatApiCurrency(Math.floor(quote.detail.net_value / quote.detail.installments))}
-                    </span>
-                  </InfoValue>
-                </InfoItem>
-              )}
-              <InfoItem icon={<IconTruck size={16} />} label="Frete">
-                <InfoValue>{formatApiCurrency(quote.detail.freight)}</InfoValue>
-              </InfoItem>
-              <InfoItem icon={<IconPercent size={16} />} label="Desconto">
-                <InfoValue>
-                  {quote.detail.discount_percentage
-                    ? `${(quote.detail.discount_percentage / 100).toFixed(2).replace('.', ',')}% (${formatApiCurrency(quote.detail.discount_value)})`
-                    : '—'}
-                </InfoValue>
-              </InfoItem>
-              <InfoItem icon={<IconDollarSign size={16} />} label="Subtotal dos itens">
-                <InfoValue>{formatApiCurrency(quote.detail.total_items_value)}</InfoValue>
-              </InfoItem>
-              <InfoItem icon={<IconDollarSign size={16} />} label="Valor total">
-                <InfoValue>{formatApiCurrency(quote.detail.total_quote_value)}</InfoValue>
-              </InfoItem>
-              <InfoItem icon={<IconDollarSign size={16} />} label="Valor líquido">
-                <InfoValue>
-                  <span className="text-success font-bold">{formatApiCurrency(quote.detail.net_value)}</span>
-                </InfoValue>
-              </InfoItem>
-            </ViewSection>
+                <ViewSection title="Financeiro">
+                  <InfoItem icon={<IconCreditCard size={16} />} label="Meio de pagamento">
+                    <InfoValue>{quote.paymentMethod?.name ?? '—'}</InfoValue>
+                  </InfoItem>
+                  <InfoItem icon={<IconCreditCard size={16} />} label="Parcelas">
+                    <InfoValue>{quote.detail.installments > 0 ? `${quote.detail.installments}x` : 'À vista'}</InfoValue>
+                  </InfoItem>
+                  {quote.detail.installments > 0 && (
+                    <InfoItem icon={<IconCreditCard size={16} />} label="Valor por parcela">
+                      <InfoValue>
+                        <span className="font-bold text-foreground">
+                          {formatApiCurrency(Math.floor(quote.detail.net_value / quote.detail.installments))}
+                        </span>
+                      </InfoValue>
+                    </InfoItem>
+                  )}
+                  <InfoItem icon={<IconTruck size={16} />} label="Frete">
+                    <InfoValue>{formatApiCurrency(quote.detail.freight)}</InfoValue>
+                  </InfoItem>
+                  <InfoItem icon={<IconPercent size={16} />} label="Desconto">
+                    <InfoValue>
+                      {quote.detail.discount_percentage
+                        ? `${(quote.detail.discount_percentage / 100).toFixed(2).replace('.', ',')}% (${formatApiCurrency(quote.detail.discount_value)})`
+                        : '—'}
+                    </InfoValue>
+                  </InfoItem>
+                  <InfoItem icon={<IconDollarSign size={16} />} label="Subtotal dos itens">
+                    <InfoValue>{formatApiCurrency(quote.detail.total_items_value)}</InfoValue>
+                  </InfoItem>
+                  <InfoItem icon={<IconDollarSign size={16} />} label="Valor total">
+                    <InfoValue>{formatApiCurrency(quote.detail.total_quote_value)}</InfoValue>
+                  </InfoItem>
+                  <InfoItem icon={<IconDollarSign size={16} />} label="Valor líquido">
+                    <InfoValue>
+                      <span className="text-success font-bold">{formatApiCurrency(quote.detail.net_value)}</span>
+                    </InfoValue>
+                  </InfoItem>
+                </ViewSection>
+              </>
+            )}
           </>
         )}
       </SideModal>

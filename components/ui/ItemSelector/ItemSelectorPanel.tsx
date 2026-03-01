@@ -17,16 +17,21 @@ export function ItemSelectorPanel<T>({
   onSearchChange,
   isLoading = false,
   mode = 'multi',
+  closeOnSelect,
+  footerButtons,
+  noResultsContent,
 }: ItemSelectorPanelProps<T>) {
+  const shouldCloseOnSelect = closeOnSelect ?? (mode === 'single');
+
   function handleItemClick(item: T) {
     onToggle(item);
-    if (mode === 'single') {
+    if (shouldCloseOnSelect) {
       onClose();
     }
   }
 
   return (
-    <SideModal isOpen={isOpen} onClose={onClose} title={title}>
+    <SideModal isOpen={isOpen} onClose={onClose} title={title} footerButtons={footerButtons}>
       <div className="flex flex-col gap-4 -mt-4">
         <SearchInput
           value={searchValue}
@@ -40,7 +45,13 @@ export function ItemSelectorPanel<T>({
           </div>
         )}
 
-        {!isLoading && items.length === 0 && (
+        {!isLoading && items.length === 0 && noResultsContent && (
+          <div className="py-8">
+            {noResultsContent}
+          </div>
+        )}
+
+        {!isLoading && items.length === 0 && !noResultsContent && (
           <div className="flex items-center justify-center py-16">
             <span className="text-sm text-muted">Nenhum resultado encontrado.</span>
           </div>

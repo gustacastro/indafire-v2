@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { SideModalButton } from './side-modal.types';
 
 export interface ItemSelectorPanelProps<T> {
   isOpen: boolean;
@@ -13,4 +14,7 @@ export interface ItemSelectorPanelProps<T> {
   onSearchChange: (value: string) => void;
   isLoading?: boolean;
   mode?: 'single' | 'multi';
+  closeOnSelect?: boolean;
+  footerButtons?: SideModalButton[];
+  noResultsContent?: ReactNode;
 }

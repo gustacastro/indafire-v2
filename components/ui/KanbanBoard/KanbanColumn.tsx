@@ -63,6 +63,7 @@ export function KanbanColumn<TCard extends KanbanBaseCard>({
             {column.cards.length}
           </span>
         </div>
+        {column.headerAction}
       </div>
 
       <div ref={setNodeRef} className={containerClasses}>
@@ -88,7 +89,7 @@ export function KanbanColumn<TCard extends KanbanBaseCard>({
           </div>
         )}
 
-        <div className="space-y-(--spacing-md) flex-1">
+        <div className="space-y-(--spacing-sm) flex-1">
           {column.cards.map((card) => {
             const isCardMoving = movingCardId === card.id;
             return (

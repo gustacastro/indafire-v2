@@ -106,7 +106,7 @@ export interface EnrichedQuoteJob {
 export interface EnrichedQuote {
   detail: QuoteDetail;
   client: Client;
-  paymentMethod: PaymentMethod;
+  paymentMethod: PaymentMethod | null;
   products: EnrichedQuoteProduct[];
   jobs: EnrichedQuoteJob[];
   rejections: EnrichedRejection[];
@@ -246,9 +246,9 @@ export async function fetchQuotes(params: FetchQuotesParams = {}): Promise<Quote
 export async function fetchQuotesEnriched(params: FetchQuotesParams = {}): Promise<QuotesResponse> {
   const quotesRes = await fetchQuotes(params);
 
-  const clientIds = [...new Set(quotesRes.data.map((q) => q.client_id))];
-  const paymentIds = [...new Set(quotesRes.data.map((q) => q.payment_method_id))];
-  const creatorIds = [...new Set(quotesRes.data.map((q) => q.creator_id))];
+  const clientIds = [...new Set(quotesRes.data.map((q) => q.client_id).filter(Boolean))];
+  const paymentIds = [...new Set(quotesRes.data.map((q) => q.payment_method_id).filter(Boolean))];
+  const creatorIds = [...new Set(quotesRes.data.map((q) => q.creator_id).filter(Boolean))];
 
   const [clients, paymentMethods, creators] = await Promise.all([
     Promise.all(clientIds.map((id) => getClientById(id).catch(() => null))),
@@ -288,7 +288,9 @@ export async function getQuoteEnriched(quoteId: string): Promise<EnrichedQuote> 
 
   const [client, paymentMethod, products, jobs, rejectionCreators] = await Promise.all([
     getClientById(detail.client_id),
-    getPaymentMethodById(detail.payment_method_id),
+    detail.payment_method_id
+      ? getPaymentMethodById(detail.payment_method_id).catch(() => null)
+      : Promise.resolve(null),
     Promise.all(
       detail.products.map(async (p) => {
         const product = await getProductById(p.product_id);
