@@ -1,0 +1,364 @@
+import { api } from '@/lib/axios';
+import { getProductById, Product } from '@/app/(protected)/products/products.facade';
+import { getJobById, Job } from '@/app/(protected)/jobs/jobs.facade';
+import { getClientById, Client, getClientName, getClientDocument, getClientType } from '@/app/(protected)/clients/clients.facade';
+import { getPaymentMethodById, PaymentMethod, fetchPaymentMethods } from '@/app/(protected)/payment-methods/payment-methods.facade';
+import { getUserById, User } from '@/app/(protected)/users/users.facade';
+import { LabelMap, mapLabel } from '@/utils/label-map';
+import { StatusBadgeVariant } from '@/types/ui/status-badge.types';
+
+export { getClientName, getClientDocument, getClientType };
+export type { Client, Product, Job, PaymentMethod };
+
+export interface QuoteProduct {
+  product_id: string;
+  amount: number;
+  unitary_value: number;
+}
+
+export interface QuoteService {
+  service_id: string;
+  amount: number;
+  unitary_value: number;
+}
+
+export interface QuoteListItem {
+  id: string;
+  quote_id: string;
+  quote_code: number;
+  client_id: string;
+  payment_method_id: string;
+  creator_id: string;
+  company_id: string;
+  total_items_value: number;
+  total_quote_value: number;
+  freight: number;
+  discount_percentage: number;
+  discount_value: number;
+  net_value: number;
+  installments: number;
+  expected_delivery_date: string;
+  status: string;
+  deleted: boolean;
+  clientName?: string;
+  paymentMethodName?: string;
+  creatorName?: string;
+}
+
+export interface QuoteDetailProduct {
+  product_id: string;
+  amount: number;
+  unitary_value: number;
+}
+
+export interface QuoteDetailJob {
+  job_id: string;
+  service_id: string | null;
+  amount: number;
+  unitary_value: number;
+}
+
+export interface QuoteRejection {
+  reason: string;
+  created_at: string;
+  created_by: string;
+}
+
+export interface EnrichedRejection {
+  reason: string;
+  created_at: string;
+  created_by_name: string;
+}
+
+export interface QuoteDetail {
+  quote_id: string;
+  quote_code: number;
+  creator_id: string;
+  expected_delivery_date: string;
+  freight: number;
+  installments: number;
+  discount_percentage: number;
+  discount_value: number;
+  total_items_value: number;
+  total_quote_value: number;
+  net_value: number;
+  client_id: string;
+  payment_method_id: string;
+  company_id: string;
+  status: string;
+  products: QuoteDetailProduct[];
+  jobs: QuoteDetailJob[];
+  rejections: QuoteRejection[];
+}
+
+export interface EnrichedQuoteProduct {
+  product: Product;
+  amount: number;
+  unitary_value: number;
+}
+
+export interface EnrichedQuoteJob {
+  job: Job;
+  amount: number;
+  unitary_value: number;
+}
+
+export interface EnrichedQuote {
+  detail: QuoteDetail;
+  client: Client;
+  paymentMethod: PaymentMethod;
+  products: EnrichedQuoteProduct[];
+  jobs: EnrichedQuoteJob[];
+  rejections: EnrichedRejection[];
+}
+
+export interface CreateQuotePayload {
+  quote_code: string;
+  client_id: string;
+  company_id: string;
+  expected_delivery_date: string;
+  freight: number;
+  total_items_value: number;
+  total_quote_value: number;
+  discount_percentage: number;
+  discount_value: number;
+  net_value: number;
+  installments: number;
+  payment_method_id: string;
+  status: string;
+  deleted: boolean;
+  products: QuoteProduct[];
+  services: QuoteService[];
+}
+
+export type UpdateQuotePayload = CreateQuotePayload;
+
+export interface QuotesPagination {
+  total_items: number;
+  request_total_items: number;
+}
+
+export interface QuotesResponse {
+  pagination: QuotesPagination;
+  data: QuoteListItem[];
+}
+
+export interface FetchQuotesParams {
+  page?: number;
+  perPage?: number;
+  search?: string;
+}
+
+interface RawQuoteListItem {
+  quote_id: string;
+  quote_code: number;
+  client_id: string;
+  payment_method_id: string;
+  creator_id: string;
+  company_id: string;
+  total_items_value: number;
+  total_quote_value: number;
+  freight: number;
+  discount_percentage: number;
+  discount_value: number;
+  net_value: number;
+  installments: number;
+  expected_delivery_date: string;
+  status: string;
+  deleted: boolean;
+}
+
+interface RawQuotesResponse {
+  pagination: QuotesPagination;
+  data: RawQuoteListItem[];
+}
+
+interface RawQuoteDetailResponse {
+  quote: {
+    quote_id: string;
+    quote_code: number;
+    creator_id: string;
+    expected_delivery_date: string;
+    freight: number;
+    installments: number;
+    discount_percentage: number;
+    discount_value: number;
+    total_items_value: number;
+    total_quote_value: number;
+    net_value: number;
+    client_id: string;
+    payment_method_id: string;
+    company_id: string;
+    status: string;
+    products: QuoteDetailProduct[];
+    jobs: QuoteDetailJob[];
+    rejections: QuoteRejection[];
+  };
+}
+
+function normalizeQuoteListItem(raw: RawQuoteListItem): QuoteListItem {
+  return { ...raw, id: raw.quote_id };
+}
+
+const QUOTE_STATUS_LABELS: LabelMap = {
+  IN_ATTENDANCE: 'Em Atendimento',
+  PENDING_APPROVAL: 'Pendente',
+  SUBMITTED: 'Proposta Enviada',
+  APPROVED: 'Aprovado',
+  DECLINED: 'Recusado',
+  REJECTED: 'Rejeitado',
+  CANCELLED: 'Cancelado',
+  WITH_DIVERGENCY: 'Divergente',
+};
+
+const QUOTE_STATUS_VARIANTS: Record<string, StatusBadgeVariant> = {
+  IN_ATTENDANCE: 'muted',
+  PENDING_APPROVAL: 'warning',
+  SUBMITTED: 'primary',
+  APPROVED: 'success',
+  DECLINED: 'error',
+  REJECTED: 'error',
+  CANCELLED: 'muted',
+  WITH_DIVERGENCY: 'warning',
+};
+
+export function getQuoteStatusLabel(status: string): string {
+  return mapLabel(status, QUOTE_STATUS_LABELS);
+}
+
+export function getQuoteStatusVariant(status: string): StatusBadgeVariant {
+  return QUOTE_STATUS_VARIANTS[status] ?? 'muted';
+}
+
+export async function fetchQuotes(params: FetchQuotesParams = {}): Promise<QuotesResponse> {
+  const { page = 1, perPage = 10, search = '' } = params;
+  const query = new URLSearchParams();
+  query.set('page', String(page));
+  query.set('per_page', String(perPage));
+  if (search) query.set('search_term', search);
+  const { data } = await api.get<RawQuotesResponse>(`/quotes/?${query.toString()}`);
+  return {
+    pagination: data.pagination,
+    data: data.data.map(normalizeQuoteListItem),
+  };
+}
+
+export async function fetchQuotesEnriched(params: FetchQuotesParams = {}): Promise<QuotesResponse> {
+  const quotesRes = await fetchQuotes(params);
+
+  const clientIds = [...new Set(quotesRes.data.map((q) => q.client_id))];
+  const paymentIds = [...new Set(quotesRes.data.map((q) => q.payment_method_id))];
+  const creatorIds = [...new Set(quotesRes.data.map((q) => q.creator_id))];
+
+  const [clients, paymentMethods, creators] = await Promise.all([
+    Promise.all(clientIds.map((id) => getClientById(id).catch(() => null))),
+    Promise.all(paymentIds.map((id) => getPaymentMethodById(id).catch(() => null))),
+    Promise.all(creatorIds.map((id) => getUserById(id).catch(() => null))),
+  ]);
+
+  const clientMap = new Map<string, Client>();
+  clients.forEach((c) => { if (c) clientMap.set(c.id, c); });
+
+  const pmMap = new Map<string, PaymentMethod>();
+  paymentMethods.forEach((pm) => { if (pm) pmMap.set(pm.id, pm); });
+
+  const creatorMap = new Map<string, User>();
+  creators.forEach((u) => { if (u) creatorMap.set(u.id, u); });
+
+  return {
+    pagination: quotesRes.pagination,
+    data: quotesRes.data.map((q) => ({
+      ...q,
+      clientName: clientMap.has(q.client_id) ? getClientName(clientMap.get(q.client_id)!) : '—',
+      paymentMethodName: pmMap.get(q.payment_method_id)?.name ?? '—',
+      creatorName: creatorMap.get(q.creator_id)?.name ?? '—',
+    })),
+  };
+}
+
+export async function getQuoteById(quoteId: string): Promise<QuoteDetail> {
+  const { data } = await api.get<RawQuoteDetailResponse>(`/quotes/${quoteId}`);
+  return data.quote;
+}
+
+export async function getQuoteEnriched(quoteId: string): Promise<EnrichedQuote> {
+  const detail = await getQuoteById(quoteId);
+
+  const rejectionCreatorIds = [...new Set(detail.rejections.map((r) => r.created_by))];
+
+  const [client, paymentMethod, products, jobs, rejectionCreators] = await Promise.all([
+    getClientById(detail.client_id),
+    getPaymentMethodById(detail.payment_method_id),
+    Promise.all(
+      detail.products.map(async (p) => {
+        const product = await getProductById(p.product_id);
+        return { product, amount: p.amount, unitary_value: p.unitary_value } as EnrichedQuoteProduct;
+      }),
+    ),
+    Promise.all(
+      detail.jobs.map(async (j) => {
+        const job = await getJobById(j.job_id);
+        return { job, amount: j.amount, unitary_value: j.unitary_value } as EnrichedQuoteJob;
+      }),
+    ),
+    Promise.all(rejectionCreatorIds.map((id) => getUserById(id).catch(() => null))),
+  ]);
+
+  const creatorMap = new Map<string, string>();
+  rejectionCreators.forEach((u) => { if (u) creatorMap.set(u.id, u.name); });
+
+  const rejections: EnrichedRejection[] = detail.rejections.map((r) => ({
+    reason: r.reason,
+    created_at: r.created_at,
+    created_by_name: creatorMap.get(r.created_by) ?? 'Usuário desconhecido',
+  }));
+
+  return { detail, client, paymentMethod, products, jobs, rejections };
+}
+
+export async function createQuote(payload: CreateQuotePayload, initialStatus = 'PENDING_APPROVAL'): Promise<void> {
+  await api.post(`/quotes/create/${initialStatus}`, payload);
+}
+
+export async function updateQuote(quoteId: string, payload: UpdateQuotePayload): Promise<void> {
+  await api.put(`/quotes/${quoteId}`, payload);
+}
+
+export async function deleteQuote(quoteId: string): Promise<void> {
+  await api.delete(`/quotes/${quoteId}`);
+}
+
+export async function updateQuoteStatus(
+  quoteId: string,
+  newStatus: string,
+  body?: { reason: string }
+): Promise<void> {
+  await api.put(`/quotes/${quoteId}/${newStatus}`, body ?? {});
+}
+
+export async function fetchAllPaymentMethods(): Promise<PaymentMethod[]> {
+  const res = await fetchPaymentMethods({ page: 1, perPage: 9999 });
+  return res.data.filter((pm) => pm.active && !pm.deleted);
+}
+
+export function calcTotalItemsValue(
+  products: { unitary_value: number; amount: number }[],
+  services: { unitary_value: number; amount: number }[],
+): number {
+  const prodTotal = products.reduce((sum, p) => sum + p.unitary_value * p.amount, 0);
+  const servTotal = services.reduce((sum, s) => sum + s.unitary_value * s.amount, 0);
+  return prodTotal + servTotal;
+}
+
+export function calcQuoteTotals(
+  products: { unitary_value: number; amount: number }[],
+  services: { unitary_value: number; amount: number }[],
+  freight: number,
+  discountPercentage: number,
+) {
+  const totalItemsValue = calcTotalItemsValue(products, services);
+  const totalQuoteValue = totalItemsValue + freight;
+  const discountValue = Math.round(totalItemsValue * discountPercentage / 10000);
+  const netValue = totalQuoteValue - discountValue;
+  return { totalItemsValue, totalQuoteValue, discountValue, netValue };
+}
