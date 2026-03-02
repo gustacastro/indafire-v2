@@ -6,6 +6,15 @@ import { getPaymentMethodById, PaymentMethod, fetchPaymentMethods } from '@/app/
 import { getUserById, User } from '@/app/(protected)/users/users.facade';
 import { LabelMap, mapLabel } from '@/utils/label-map';
 import { StatusBadgeVariant } from '@/types/ui/status-badge.types';
+import {
+  Divergency,
+  EnrichedDivergency,
+  CreateDivergencyPayload,
+  ResolveDivergencyPayload,
+  DivergenciesResponse,
+} from '@/types/entities/quote/divergency.types';
+
+export type { EnrichedDivergency };
 
 export { getClientName, getClientDocument, getClientType, buildGoogleMapsUrl, formatAddressShort };
 export type { Client, Product, Job, PaymentMethod };
@@ -110,6 +119,7 @@ export interface EnrichedQuote {
   products: EnrichedQuoteProduct[];
   jobs: EnrichedQuoteJob[];
   rejections: EnrichedRejection[];
+  divergencies: EnrichedDivergency[];
 }
 
 export interface CreateQuotePayload {
@@ -286,7 +296,7 @@ export async function getQuoteEnriched(quoteId: string): Promise<EnrichedQuote> 
 
   const rejectionCreatorIds = [...new Set(detail.rejections.map((r) => r.created_by))];
 
-  const [client, paymentMethod, products, jobs, rejectionCreators] = await Promise.all([
+  const [client, paymentMethod, products, jobs, rejectionCreators, rawDivergencies] = await Promise.all([
     getClientById(detail.client_id),
     detail.payment_method_id
       ? getPaymentMethodById(detail.payment_method_id).catch(() => null)
@@ -304,6 +314,7 @@ export async function getQuoteEnriched(quoteId: string): Promise<EnrichedQuote> 
       }),
     ),
     Promise.all(rejectionCreatorIds.map((id) => getUserById(id).catch(() => null))),
+    fetchDivergencies(quoteId).catch(() => []),
   ]);
 
   const creatorMap = new Map<string, string>();
@@ -315,7 +326,9 @@ export async function getQuoteEnriched(quoteId: string): Promise<EnrichedQuote> 
     created_by_name: creatorMap.get(r.created_by) ?? 'Usuário desconhecido',
   }));
 
-  return { detail, client, paymentMethod, products, jobs, rejections };
+  const divergencies = await enrichDivergencies(rawDivergencies);
+
+  return { detail, client, paymentMethod, products, jobs, rejections, divergencies };
 }
 
 export async function createQuote(payload: CreateQuotePayload, initialStatus = 'PENDING_APPROVAL'): Promise<void> {
@@ -363,4 +376,58 @@ export function calcQuoteTotals(
   const discountValue = Math.round(totalItemsValue * discountPercentage / 10000);
   const netValue = totalQuoteValue - discountValue;
   return { totalItemsValue, totalQuoteValue, discountValue, netValue };
+}
+
+export const DIVERGENCY_TYPE_OPTIONS = [
+  { value: 'Orçamento incorreto', label: 'Orçamento incorreto' },
+  { value: 'Produto incorreta', label: 'Produto incorreta' },
+  { value: 'Produto preço incorreto', label: 'Produto preço incorreto' },
+  { value: 'Produto quantidade incorreta', label: 'Produto quantidade incorreta' },
+  { value: 'Produto tipo incorreto', label: 'Produto tipo incorreto' },
+  { value: 'Serviço incorreto', label: 'Serviço incorreto' },
+  { value: 'Serviço preço incorreto', label: 'Serviço preço incorreto' },
+  { value: 'Serviço quantidade incorreta', label: 'Serviço quantidade incorreta' },
+  { value: 'Serviço tipo incorreto', label: 'Serviço tipo incorreto' },
+  { value: 'Cliente endereço incorreto', label: 'Cliente endereço incorreto' },
+  { value: 'Cliente dados incorretos', label: 'Cliente dados incorretos' },
+];
+
+export async function fetchDivergencies(quoteId: string): Promise<Divergency[]> {
+  const { data } = await api.get<DivergenciesResponse>(`/quotes/${quoteId}/divergency`);
+  return data.divergencies;
+}
+
+export async function createDivergency(quoteId: string, payload: CreateDivergencyPayload): Promise<void> {
+  await api.post(`/quotes/${quoteId}/divergency`, payload);
+}
+
+export async function resolveDivergency(
+  quoteId: string,
+  divergencyId: string,
+  payload: ResolveDivergencyPayload,
+): Promise<void> {
+  await api.post(`/quotes/${quoteId}/divergency/${divergencyId}/resolve`, payload);
+}
+
+export async function enrichDivergencies(divergencies: Divergency[]): Promise<EnrichedDivergency[]> {
+  const creatorIds = [...new Set(divergencies.map((d) => d.created_by))];
+  const resolverIds = [...new Set(divergencies.filter((d) => d.resolved_by).map((d) => d.resolved_by!))];
+  const allUserIds = [...new Set([...creatorIds, ...resolverIds])];
+
+  const users = await Promise.all(allUserIds.map((id) => getUserById(id).catch(() => null)));
+  const userMap = new Map<string, string>();
+  users.forEach((u) => { if (u) userMap.set(u.id, u.name); });
+
+  return divergencies.map((d) => ({
+    divergency_id: d.divergency_id,
+    quote_id: d.quote_id,
+    type: d.type,
+    problem_description: d.problem_description,
+    resolved: d.resolved,
+    created_at: d.created_at,
+    resolved_at: d.resolved_at,
+    resolution_description: d.resolution_description,
+    created_by_name: userMap.get(d.created_by) ?? 'Usuário desconhecido',
+    resolved_by_name: d.resolved_by ? (userMap.get(d.resolved_by) ?? 'Usuário desconhecido') : null,
+  }));
 }

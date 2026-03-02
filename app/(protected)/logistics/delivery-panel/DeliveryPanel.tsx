@@ -16,6 +16,7 @@ import { DeliveryItemModal } from './DeliveryItemModal';
 import { StartRouteModal } from '@/app/(protected)/logistics/pickup-panel/StartRouteModal';
 import { PickupItemModal } from '@/app/(protected)/logistics/pickup-panel/PickupItemModal';
 import { QuoteViewPanel } from '@/app/(protected)/quotes/QuoteViewPanel';
+import { OpenDivergencyModal } from '@/components/ui/DivergencyModal/OpenDivergencyModal';
 import {
   fetchDeliveryKanbanData,
   getAllowedTargetColumns,
@@ -63,6 +64,7 @@ export function DeliveryPanel() {
   const [deliveryProgress, setDeliveryProgress] = useState<Map<string, DeliveryProgress>>(new Map());
   const [deliveryModalCard, setDeliveryModalCard] = useState<PickupKanbanCardType | null>(null);
   const [pickupModalCard, setPickupModalCard] = useState<PickupKanbanCardType | null>(null);
+  const [divergencyCard, setDivergencyCard] = useState<PickupKanbanCardType | null>(null);
 
   useEffect(() => {
     if (!authLoading && !canView) router.replace('/dashboard');
@@ -204,6 +206,10 @@ export function DeliveryPanel() {
     setDeliveryModalCard(card);
   }
 
+  function handleOpenDivergency(card: PickupKanbanCardType) {
+    setDivergencyCard(card);
+  }
+
   async function handleDeliveryItemChanged() {
     const progress = await fetchDeliveryProgress(columns);
     setDeliveryProgress(progress);
@@ -219,6 +225,7 @@ export function DeliveryPanel() {
         onViewQuoteRequest={handleViewQuote}
         onViewPickupsRequest={handleViewPickups}
         onDeliverRequest={handleDeliverRequest}
+        onOpenDivergency={handleOpenDivergency}
       />
     );
   }
@@ -299,6 +306,7 @@ export function DeliveryPanel() {
         isOpen={viewPanelId !== null}
         quoteId={viewPanelId}
         onClose={() => setViewPanelId(null)}
+        onDataChanged={() => loadData(searchValue || undefined)}
         hideFinancials
       />
 
@@ -325,6 +333,18 @@ export function DeliveryPanel() {
           card={pickupModalCard}
           onItemChanged={() => {}}
           readOnly
+        />
+      )}
+
+      {divergencyCard && (
+        <OpenDivergencyModal
+          isOpen
+          onClose={() => setDivergencyCard(null)}
+          quoteId={divergencyCard.quoteId}
+          onSuccess={() => {
+            setDivergencyCard(null);
+            loadData(searchValue || undefined);
+          }}
         />
       )}
     </div>

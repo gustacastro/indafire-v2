@@ -138,7 +138,14 @@ export async function fetchProductTaskCards(search?: string): Promise<PickupKanb
     if (u) userMap.set(u.id, u.name);
   });
 
-  let cards: PickupKanbanCard[] = relevantTasks.map((task) => {
+  let cards: PickupKanbanCard[] = relevantTasks
+    .filter((task) => {
+      const quote = quoteMap.get(task.quote_id);
+      if (!quote) return false;
+      if (quote.status === 'WITH_DIVERGENCY') return false;
+      return true;
+    })
+    .map((task) => {
     const quote = quoteMap.get(task.quote_id);
     const product = productMap.get(task.product_id);
     const client = quote ? clientMap.get(quote.client_id) : undefined;

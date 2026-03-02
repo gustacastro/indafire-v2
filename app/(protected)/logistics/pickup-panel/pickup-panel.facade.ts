@@ -126,7 +126,14 @@ export async function fetchJobTaskCards(search?: string): Promise<PickupKanbanCa
     if (u) userMap.set(u.id, u.name);
   });
 
-  let cards: PickupKanbanCard[] = tasks.map((task) => {
+  let cards: PickupKanbanCard[] = tasks
+    .filter((task) => {
+      const quote = quoteMap.get(task.quote_id);
+      if (!quote) return false;
+      if (quote.status === 'WITH_DIVERGENCY') return false;
+      return true;
+    })
+    .map((task) => {
     const quote = quoteMap.get(task.quote_id);
     const job = jobMap.get(task.job_id);
     const client = quote ? clientMap.get(quote.client_id) : undefined;

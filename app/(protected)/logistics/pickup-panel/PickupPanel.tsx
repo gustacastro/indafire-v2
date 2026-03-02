@@ -16,6 +16,7 @@ import { PickupScheduleModal } from './PickupScheduleModal';
 import { StartRouteModal } from './StartRouteModal';
 import { PickupItemModal } from './PickupItemModal';
 import { QuoteViewPanel } from '@/app/(protected)/quotes/QuoteViewPanel';
+import { OpenDivergencyModal } from '@/components/ui/DivergencyModal/OpenDivergencyModal';
 import {
   fetchPickupKanbanData,
   getAllowedTargetColumns,
@@ -70,6 +71,7 @@ export function PickupPanel() {
   const [viewPanelId, setViewPanelId] = useState<string | null>(null);
   const [pickupProgress, setPickupProgress] = useState<Map<string, PickupProgress>>(new Map());
   const [pickupModalCard, setPickupModalCard] = useState<PickupKanbanCardType | null>(null);
+  const [divergencyCard, setDivergencyCard] = useState<PickupKanbanCardType | null>(null);
 
   useEffect(() => {
     if (!authLoading && !canView) router.replace('/dashboard');
@@ -245,6 +247,10 @@ export function PickupPanel() {
     });
   }
 
+  function handleOpenDivergency(card: PickupKanbanCardType) {
+    setDivergencyCard(card);
+  }
+
   async function handlePickupItemChanged() {
     const progress = await fetchAllPickupProgress(columns);
     setPickupProgress(progress);
@@ -262,6 +268,7 @@ export function PickupPanel() {
         onPickupRequest={handlePickupRequest}
         onViewPickupsRequest={handleViewPickups}
         onSendToWorkshop={handleSendToWorkshop}
+        onOpenDivergency={handleOpenDivergency}
       />
     );
   }
@@ -357,8 +364,21 @@ export function PickupPanel() {
         isOpen={viewPanelId !== null}
         quoteId={viewPanelId}
         onClose={() => setViewPanelId(null)}
+        onDataChanged={() => loadData(searchValue || undefined)}
         hideFinancials
       />
+
+      {divergencyCard && (
+        <OpenDivergencyModal
+          isOpen
+          onClose={() => setDivergencyCard(null)}
+          quoteId={divergencyCard.quoteId}
+          onSuccess={() => {
+            setDivergencyCard(null);
+            loadData(searchValue || undefined);
+          }}
+        />
+      )}
 
       {pickupModalCard && (
         <PickupItemModal

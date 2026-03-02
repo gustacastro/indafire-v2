@@ -15,6 +15,7 @@ import {
   IconMapPin,
   IconPackage,
   IconCheck,
+  IconAlertCircle,
 } from '@/components/icons';
 import { DeliveryKanbanCardProps } from '@/types/entities/job-task/pickup-kanban.types';
 import { formatAddressShort } from '@/app/(protected)/clients/clients.facade';
@@ -32,6 +33,7 @@ export function DeliveryKanbanCard({
   onViewQuoteRequest,
   onViewPickupsRequest,
   onDeliverRequest,
+  onOpenDivergency,
 }: DeliveryKanbanCardProps) {
   const isInRoute = card.status === 'IN_DELIVER_ROUTE';
   const isDelivered = card.status === 'DELIVERED';
@@ -105,6 +107,12 @@ export function DeliveryKanbanCard({
                       },
                     ]
                   : []),
+                {
+                  label: 'Abrir divergência',
+                  icon: <IconAlertCircle size={15} />,
+                  separator: true,
+                  onClick: () => onOpenDivergency?.(card),
+                },
               ]}
             />
             <Button

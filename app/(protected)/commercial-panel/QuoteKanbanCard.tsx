@@ -17,6 +17,7 @@ import {
   IconEye,
   IconEdit,
   IconTrash,
+  IconAlertCircle,
 } from '@/components/icons';
 import { DetailField } from '@/components/ui/DetailField/DetailField';
 import { formatApiCurrency } from '@/utils/currency';
@@ -153,7 +154,22 @@ export function QuoteKanbanCard({
         </div>
 
         <div className="pt-(--spacing-sm) border-t border-border flex justify-between items-center mt-auto">
-          {nextColumnId ? (
+          {columnId === 'col-divergent' ? (
+            <Button
+              variant="brand-outline"
+              size="sm"
+              fullWidth
+              iconRight={<IconAlertCircle size={14} />}
+              disabled={isMoving}
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewRequest?.(card);
+              }}
+              className="text-xs! py-1.5!"
+            >
+              Ver divergências
+            </Button>
+          ) : nextColumnId ? (
             <Button
               variant="brand-outline"
               size="sm"
@@ -164,7 +180,7 @@ export function QuoteKanbanCard({
                 e.stopPropagation();
                 onDirectMove(card, columnId, nextColumnId);
               }}
-              className="!text-xs !py-1.5"
+              className="text-xs! py-1.5!"
             >
               {nextColLabel}
             </Button>

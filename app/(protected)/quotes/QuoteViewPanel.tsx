@@ -16,9 +16,11 @@ import {
   IconTruck,
   IconPercent,
   IconMapPin,
+  IconAlertCircle,
 } from '@/components/icons';
 import { formatApiCurrency } from '@/utils/currency';
 import { formatCpf, formatCnpj } from '@/utils/document';
+import { useAuth } from '@/hooks/useAuth';
 import {
   getQuoteEnriched,
   EnrichedQuote,
@@ -35,6 +37,8 @@ import { InfoValue } from '@/components/ui/InfoValue/InfoValue';
 import { Button } from '@/components/ui/Button/Button';
 import { QuoteHistoryModal } from './QuoteHistoryModal';
 import { QuoteViewPanelProps } from '@/types/entities/quote/quote-view-panel.types';
+import { DivergencyCard } from '@/components/ui/DivergencyCard/DivergencyCard';
+import { ResolveDivergencyModal } from '@/components/ui/DivergencyModal/ResolveDivergencyModal';
 
 interface QuoteItemsSectionItem {
   id: string;
@@ -98,13 +102,18 @@ function formatDateBR(dateStr: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export function QuoteViewPanel({ quoteId, isOpen, onClose, footerButtons, hideFinancials }: QuoteViewPanelProps) {
+export function QuoteViewPanel({ quoteId, isOpen, onClose, footerButtons, hideFinancials, onDataChanged }: QuoteViewPanelProps) {
+  const { hasPermission } = useAuth();
+  const canViewQuotes = hasPermission('quotes', 'view');
+  const canViewTasks = hasPermission('product_tasks', 'view') || hasPermission('job_tasks', 'view');
+
   const [quote, setQuote] = useState<EnrichedQuote | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [resolveTarget, setResolveTarget] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen || !quoteId) return;
@@ -116,7 +125,21 @@ export function QuoteViewPanel({ quoteId, isOpen, onClose, footerButtons, hideFi
       .finally(() => setIsLoading(false));
   }, [isOpen, quoteId]);
 
-  const hasRejections = (quote?.rejections.length ?? 0) > 0;
+  const hasRejections = canViewQuotes && (quote?.rejections.length ?? 0) > 0;
+  const hasDivergencies = canViewTasks && (quote?.divergencies.length ?? 0) > 0;
+  const hasHistory = hasRejections || hasDivergencies;
+  const openDivergencies = canViewTasks ? (quote?.divergencies.filter((d) => !d.resolved) ?? []) : [];
+
+  function reloadQuote() {
+    if (!quoteId) return;
+    setQuote(null);
+    setIsLoading(true);
+    getQuoteEnriched(quoteId)
+      .then(setQuote)
+      .catch(() => toast.error('Erro ao carregar detalhes do orçamento.'))
+      .finally(() => setIsLoading(false));
+    onDataChanged?.();
+  }
 
   function openGallery(images: string[], index: number) {
     setGalleryImages(images);
@@ -135,11 +158,30 @@ export function QuoteViewPanel({ quoteId, isOpen, onClose, footerButtons, hideFi
 
         {!isLoading && quote && (
           <>
-            {hasRejections && (
+            {hasHistory && (
               <div className="flex justify-end mb-(--spacing-lg)">
                 <Button variant="outline" size="sm" onClick={() => setHistoryOpen(true)}>
                   Históricos
                 </Button>
+              </div>
+            )}
+
+            {openDivergencies.length > 0 && (
+              <div className="mb-(--spacing-lg)">
+                <div className="flex items-center gap-(--spacing-sm) mb-(--spacing-sm)">
+                  <IconAlertCircle size={16} className="text-warning" />
+                  <span className="text-sm font-bold text-foreground">Divergências em Aberto</span>
+                  <StatusBadge label={`${openDivergencies.length}`} variant="warning" />
+                </div>
+                <div className="space-y-(--spacing-sm)">
+                  {openDivergencies.map((d) => (
+                    <DivergencyCard
+                      key={d.divergency_id}
+                      divergency={d}
+                      onResolveRequest={(id) => setResolveTarget(id)}
+                    />
+                  ))}
+                </div>
               </div>
             )}
 
@@ -284,6 +326,23 @@ export function QuoteViewPanel({ quoteId, isOpen, onClose, footerButtons, hideFi
           isOpen={historyOpen}
           onClose={() => setHistoryOpen(false)}
           rejections={quote.rejections}
+          divergencies={quote.divergencies}
+          onResolveRequest={(id) => setResolveTarget(id)}
+          showRejections={canViewQuotes}
+          showDivergencies={canViewTasks}
+        />
+      )}
+
+      {quote && resolveTarget && (
+        <ResolveDivergencyModal
+          isOpen
+          onClose={() => setResolveTarget(null)}
+          quoteId={quote.detail.quote_id}
+          divergencyId={resolveTarget}
+          onSuccess={() => {
+            setResolveTarget(null);
+            reloadQuote();
+          }}
         />
       )}
 

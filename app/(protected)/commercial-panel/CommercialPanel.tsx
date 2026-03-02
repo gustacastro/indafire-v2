@@ -569,6 +569,7 @@ export function CommercialPanel() {
         isOpen={viewPanelId !== null}
         quoteId={viewPanelId}
         onClose={() => setViewPanelId(null)}
+        onDataChanged={() => loadData(searchValue || undefined)}
         footerButtons={(() => {
           const viewCard = columns.flatMap((c) => c.cards).find((c) => c.id === viewPanelId);
           const isApproved = viewCard?.status === 'APPROVED';

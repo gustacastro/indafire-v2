@@ -15,6 +15,7 @@ import {
   IconEye,
   IconMapPin,
   IconWrench,
+  IconAlertCircle,
 } from '@/components/icons';
 import { PickupKanbanCardProps } from '@/types/entities/job-task/pickup-kanban.types';
 import { formatAddressShort } from '@/app/(protected)/clients/clients.facade';
@@ -36,6 +37,7 @@ export function PickupKanbanCard({
   onPickupRequest,
   onViewPickupsRequest,
   onSendToWorkshop,
+  onOpenDivergency,
 }: PickupKanbanCardProps) {
   const isWaitingScheduling = card.status === 'WAITING_SCHEDULING';
   const isDone = card.status === 'PICKUP_DONE';
@@ -98,6 +100,12 @@ export function PickupKanbanCard({
                       },
                     ]
                   : []),
+                {
+                  label: 'Abrir divergência',
+                  icon: <IconAlertCircle size={15} />,
+                  separator: true,
+                  onClick: () => onOpenDivergency?.(card),
+                },
               ]}
             />
             <Button

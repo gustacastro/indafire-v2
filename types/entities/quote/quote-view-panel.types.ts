@@ -6,4 +6,5 @@ export interface QuoteViewPanelProps {
   onClose: () => void;
   footerButtons?: SideModalButton[];
   hideFinancials?: boolean;
+  onDataChanged?: () => void;
 }

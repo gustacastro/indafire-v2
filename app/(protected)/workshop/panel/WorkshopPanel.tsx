@@ -14,6 +14,7 @@ import { KanbanCardComponentProps } from '@/types/ui/kanban.types';
 import { WorkshopKanbanCard } from './WorkshopKanbanCard';
 import { PickupItemModal } from '@/app/(protected)/logistics/pickup-panel/PickupItemModal';
 import { QuoteViewPanel } from '@/app/(protected)/quotes/QuoteViewPanel';
+import { OpenDivergencyModal } from '@/components/ui/DivergencyModal/OpenDivergencyModal';
 import {
   fetchWorkshopKanbanData,
   getAllowedTargetColumns,
@@ -55,6 +56,7 @@ export function WorkshopPanel() {
   const [viewPanelId, setViewPanelId] = useState<string | null>(null);
   const [pickupModalCard, setPickupModalCard] = useState<PickupKanbanCardType | null>(null);
   const [pickupProgress, setPickupProgress] = useState<Map<string, PickupProgress>>(new Map());
+  const [divergencyCard, setDivergencyCard] = useState<PickupKanbanCardType | null>(null);
 
   useEffect(() => {
     if (!authLoading && !canView) router.replace('/dashboard');
@@ -163,6 +165,10 @@ export function WorkshopPanel() {
     });
   }
 
+  function handleOpenDivergency(card: PickupKanbanCardType) {
+    setDivergencyCard(card);
+  }
+
   function renderCard(props: KanbanCardComponentProps<PickupKanbanCardType>) {
     return (
       <WorkshopKanbanCard
@@ -173,6 +179,7 @@ export function WorkshopPanel() {
         onViewQuoteRequest={handleViewQuote}
         onViewPickupsRequest={handleViewPickups}
         onSendToDelivery={handleSendToDelivery}
+        onOpenDivergency={handleOpenDivergency}
       />
     );
   }
@@ -245,6 +252,7 @@ export function WorkshopPanel() {
         isOpen={viewPanelId !== null}
         quoteId={viewPanelId}
         onClose={() => setViewPanelId(null)}
+        onDataChanged={() => loadData(searchValue || undefined)}
         hideFinancials
       />
 
@@ -255,6 +263,18 @@ export function WorkshopPanel() {
           card={pickupModalCard}
           onItemChanged={() => {}}
           readOnly
+        />
+      )}
+
+      {divergencyCard && (
+        <OpenDivergencyModal
+          isOpen
+          onClose={() => setDivergencyCard(null)}
+          quoteId={divergencyCard.quoteId}
+          onSuccess={() => {
+            setDivergencyCard(null);
+            loadData(searchValue || undefined);
+          }}
         />
       )}
     </div>

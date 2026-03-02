@@ -84,6 +84,7 @@ export interface PickupKanbanCardProps extends KanbanCardComponentProps<PickupKa
   onPickupRequest?: (card: PickupKanbanCard) => void;
   onViewPickupsRequest?: (card: PickupKanbanCard) => void;
   onSendToWorkshop?: (card: PickupKanbanCard) => void;
+  onOpenDivergency?: (card: PickupKanbanCard) => void;
 }
 
 export interface WorkshopKanbanCardProps extends KanbanCardComponentProps<PickupKanbanCard> {
@@ -91,6 +92,7 @@ export interface WorkshopKanbanCardProps extends KanbanCardComponentProps<Pickup
   onViewQuoteRequest?: (card: PickupKanbanCard) => void;
   onViewPickupsRequest?: (card: PickupKanbanCard) => void;
   onSendToDelivery?: (card: PickupKanbanCard) => void;
+  onOpenDivergency?: (card: PickupKanbanCard) => void;
 }
 
 export interface DeliveryItemResponse {
@@ -133,4 +135,5 @@ export interface DeliveryKanbanCardProps extends KanbanCardComponentProps<Pickup
   onViewQuoteRequest?: (card: PickupKanbanCard) => void;
   onViewPickupsRequest?: (card: PickupKanbanCard) => void;
   onDeliverRequest?: (card: PickupKanbanCard) => void;
+  onOpenDivergency?: (card: PickupKanbanCard) => void;
 }

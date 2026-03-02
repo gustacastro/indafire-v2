@@ -13,6 +13,7 @@ import {
   IconEye,
   IconMapPin,
   IconTruck,
+  IconAlertCircle,
 } from '@/components/icons';
 import { WorkshopKanbanCardProps } from '@/types/entities/job-task/pickup-kanban.types';
 import { formatAddressShort } from '@/app/(protected)/clients/clients.facade';
@@ -30,6 +31,7 @@ export function WorkshopKanbanCard({
   onViewQuoteRequest,
   onViewPickupsRequest,
   onSendToDelivery,
+  onOpenDivergency,
 }: WorkshopKanbanCardProps) {
   const isWaiting = card.status === 'WAITING_MAINTENANCE';
   const isExecuting = card.status === 'IN_MAINTENANCE';
@@ -85,6 +87,12 @@ export function WorkshopKanbanCard({
                       },
                     ]
                   : []),
+                {
+                  label: 'Abrir divergência',
+                  icon: <IconAlertCircle size={15} />,
+                  separator: true,
+                  onClick: () => onOpenDivergency?.(card),
+                },
               ]}
             />
             <Button
