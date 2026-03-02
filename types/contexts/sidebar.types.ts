@@ -8,6 +8,10 @@ export interface SubMenuItem {
     module: string;
     action: 'view' | 'edit' | 'create' | 'delete';
   };
+  permissions?: {
+    module: string;
+    action: 'view' | 'edit' | 'create' | 'delete';
+  }[];
 }
 
 export interface MenuItem {
@@ -19,6 +23,10 @@ export interface MenuItem {
     module: string;
     action: 'view' | 'edit' | 'create' | 'delete';
   };
+  permissions?: {
+    module: string;
+    action: 'view' | 'edit' | 'create' | 'delete';
+  }[];
   subItems?: SubMenuItem[];
 }
 

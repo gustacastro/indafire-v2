@@ -10,7 +10,7 @@ export function TagChip({ label, variant = 'default' }: TagChipProps) {
   return (
     <span
       className={[
-        'inline-flex items-center px-2 py-0.5 border text-xs font-medium rounded-md',
+        'inline-flex items-center px-1  border text-[11px] font-medium rounded-md text-center',
         variantClasses[variant],
       ].join(' ')}
     >

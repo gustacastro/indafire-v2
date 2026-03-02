@@ -12,7 +12,7 @@ export default function DashboardLayout({
   const { isOpen, setMobileOpen } = useSidebar();
   const pathname = usePathname();
 
-  const FULL_WIDTH_ROUTES = ['/commercial-panel'];
+  const FULL_WIDTH_ROUTES = ['/commercial-panel', '/logistics/pickup-panel', '/logistics/delivery-panel', '/workshop/panel'];
   const isFullWidth = FULL_WIDTH_ROUTES.some((route) => pathname.startsWith(route));
 
   return (

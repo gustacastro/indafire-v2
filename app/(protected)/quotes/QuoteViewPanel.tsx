@@ -5,6 +5,7 @@ import { SideModal } from '@/components/ui/SideModal/SideModal';
 import { InfoItem } from '@/components/ui/InfoItem/InfoItem';
 import { StatusBadge } from '@/components/ui/StatusBadge/StatusBadge';
 import { ImageGalleryModal } from '@/components/ui/ImageGalleryModal/ImageGalleryModal';
+import { MapsButton } from '@/components/ui/MapsButton/MapsButton';
 import {
   IconUser,
   IconCalendar,
@@ -14,8 +15,10 @@ import {
   IconImage,
   IconTruck,
   IconPercent,
+  IconMapPin,
 } from '@/components/icons';
 import { formatApiCurrency } from '@/utils/currency';
+import { formatCpf, formatCnpj } from '@/utils/document';
 import {
   getQuoteEnriched,
   EnrichedQuote,
@@ -24,6 +27,7 @@ import {
   getClientName,
   getClientDocument,
   getClientType,
+  formatAddressShort,
 } from './quotes.facade';
 import { ViewSection } from '@/components/ui/ViewSection/ViewSection';
 import { ViewDivider } from '@/components/ui/ViewDivider/ViewDivider';
@@ -44,9 +48,10 @@ interface QuoteItemsSectionProps {
   title: string;
   items: QuoteItemsSectionItem[];
   onImageClick?: (images: string[], index: number) => void;
+  hideValues?: boolean;
 }
 
-function QuoteItemsSection({ title, items, onImageClick }: QuoteItemsSectionProps) {
+function QuoteItemsSection({ title, items, onImageClick, hideValues }: QuoteItemsSectionProps) {
   if (items.length === 0) return null;
   return (
     <>
@@ -76,7 +81,7 @@ function QuoteItemsSection({ title, items, onImageClick }: QuoteItemsSectionProp
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground truncate">{item.name}</p>
                 <p className="text-xs text-muted">
-                  {item.amount}x · {formatApiCurrency(item.unitary_value)} = {formatApiCurrency(item.unitary_value * item.amount)}
+                  {hideValues ? `${item.amount}x` : `${item.amount}x · ${formatApiCurrency(item.unitary_value)} = ${formatApiCurrency(item.unitary_value * item.amount)}`}
                 </p>
               </div>
             </div>
@@ -93,7 +98,7 @@ function formatDateBR(dateStr: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export function QuoteViewPanel({ quoteId, isOpen, onClose, footerButtons }: QuoteViewPanelProps) {
+export function QuoteViewPanel({ quoteId, isOpen, onClose, footerButtons, hideFinancials }: QuoteViewPanelProps) {
   const [quote, setQuote] = useState<EnrichedQuote | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -164,11 +169,25 @@ export function QuoteViewPanel({ quoteId, isOpen, onClose, footerButtons }: Quot
                 <InfoValue>{getClientName(quote.client)}</InfoValue>
               </InfoItem>
               <InfoItem icon={<IconUser size={16} />} label="Documento">
-                <InfoValue>{getClientDocument(quote.client)}</InfoValue>
+                <InfoValue>
+                  {getClientType(quote.client) === 'PJ'
+                    ? formatCnpj(getClientDocument(quote.client))
+                    : formatCpf(getClientDocument(quote.client))}
+                </InfoValue>
               </InfoItem>
               <InfoItem icon={<IconUser size={16} />} label="Tipo">
                 <InfoValue>{getClientType(quote.client) === 'PJ' ? 'Pessoa Jurídica' : 'Pessoa Física'}</InfoValue>
               </InfoItem>
+              {(quote.client.address.street || quote.client.address.city) && (
+                <InfoItem icon={<IconMapPin size={16} />} label="Endereço">
+                  <div className="flex items-start gap-2 mt-0.5">
+                    <p className="text-sm text-foreground whitespace-pre-line flex-1">
+                      {formatAddressShort(quote.client.address)}
+                    </p>
+                    <MapsButton address={quote.client.address} />
+                  </div>
+                </InfoItem>
+              )}
             </ViewSection>
 
             {quote.detail.status === 'IN_ATTENDANCE' ? (
@@ -196,6 +215,7 @@ export function QuoteViewPanel({ quoteId, isOpen, onClose, footerButtons }: Quot
                     images: Object.values(p.product.files ?? {}),
                   }))}
                   onImageClick={openGallery}
+                  hideValues={hideFinancials}
                 />
 
                 <QuoteItemsSection
@@ -206,8 +226,11 @@ export function QuoteViewPanel({ quoteId, isOpen, onClose, footerButtons }: Quot
                     amount: j.amount,
                     unitary_value: j.unitary_value,
                   }))}
+                  hideValues={hideFinancials}
                 />
 
+                {!hideFinancials && (
+                  <>
                 <ViewDivider />
 
                 <ViewSection title="Financeiro">
@@ -248,6 +271,8 @@ export function QuoteViewPanel({ quoteId, isOpen, onClose, footerButtons }: Quot
                     </InfoValue>
                   </InfoItem>
                 </ViewSection>
+                  </>
+                )}
               </>
             )}
           </>

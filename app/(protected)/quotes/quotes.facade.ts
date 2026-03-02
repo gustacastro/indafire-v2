@@ -1,13 +1,13 @@
 import { api } from '@/lib/axios';
 import { getProductById, Product } from '@/app/(protected)/products/products.facade';
 import { getJobById, Job } from '@/app/(protected)/jobs/jobs.facade';
-import { getClientById, Client, getClientName, getClientDocument, getClientType } from '@/app/(protected)/clients/clients.facade';
+import { getClientById, Client, getClientName, getClientDocument, getClientType, buildGoogleMapsUrl, formatAddressShort } from '@/app/(protected)/clients/clients.facade';
 import { getPaymentMethodById, PaymentMethod, fetchPaymentMethods } from '@/app/(protected)/payment-methods/payment-methods.facade';
 import { getUserById, User } from '@/app/(protected)/users/users.facade';
 import { LabelMap, mapLabel } from '@/utils/label-map';
 import { StatusBadgeVariant } from '@/types/ui/status-badge.types';
 
-export { getClientName, getClientDocument, getClientType };
+export { getClientName, getClientDocument, getClientType, buildGoogleMapsUrl, formatAddressShort };
 export type { Client, Product, Job, PaymentMethod };
 
 export interface QuoteProduct {

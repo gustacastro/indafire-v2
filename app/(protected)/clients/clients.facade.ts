@@ -102,6 +102,24 @@ export function isClientActive(client: Client): boolean {
   return !client.identity.defaulter;
 }
 
+export function buildGoogleMapsUrl(address: ClientAddress): string {
+  const parts = [
+    address.street,
+    address.street_number,
+    address.district,
+    address.city,
+    address.state,
+    address.cep,
+  ].filter(Boolean);
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(parts.join(', '))}`;
+}
+
+export function formatAddressShort(address: ClientAddress): string {
+  const line1 = [address.street, address.street_number].filter(Boolean).join(', ');
+  const line2 = [address.district, `${address.city}/${address.state}`].filter(Boolean).join(' — ');
+  return [line1, line2].filter(Boolean).join('\n');
+}
+
 export interface ClientsPagination {
   total_items: number;
   request_total_items: number;

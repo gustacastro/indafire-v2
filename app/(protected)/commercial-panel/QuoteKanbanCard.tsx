@@ -18,6 +18,7 @@ import {
   IconEdit,
   IconTrash,
 } from '@/components/icons';
+import { DetailField } from '@/components/ui/DetailField/DetailField';
 import { formatApiCurrency } from '@/utils/currency';
 import { getInitials } from '@/utils/initials';
 
@@ -133,12 +134,11 @@ export function QuoteKanbanCard({
         </div>
 
         <div className="flex items-end justify-between mb-(--spacing-md) gap-(--spacing-md)">
-          <div className="flex-1">
-            <p className="text-[10px] text-muted uppercase font-bold tracking-wider mb-1">Cliente</p>
+          <DetailField label="Cliente" className="flex-1">
             <h3 className="text-xs md:text-sm font-bold text-heading line-clamp-2 leading-snug">
               {card.clientName}
             </h3>
-          </div>
+          </DetailField>
           <div className="text-right">
             {card.status === 'IN_ATTENDANCE' ? (
               <span className="text-xs font-semibold text-muted block whitespace-nowrap">
@@ -182,29 +182,22 @@ export function QuoteKanbanCard({
             <p className="text-xs text-muted text-center py-2">Em atendimento</p>
           ) : (
             <div className="grid grid-cols-2 gap-y-(--spacing-sm) gap-x-(--spacing-sm)">
-              <div>
-                <p className="text-[10px] text-muted uppercase font-bold flex items-center gap-1 mb-1">
-                  <IconHash size={12} /> Código
-                </p>
+              <DetailField icon={<IconHash size={12} />} label="Código">
                 <p className="text-xs text-foreground font-mono">#{card.quoteCode}</p>
-              </div>
+              </DetailField>
 
-              <div>
-                <p className="text-[10px] text-muted uppercase font-bold flex items-center gap-1 mb-1">
-                  <IconCalendar size={12} /> Entrega
-                </p>
-                <p className="text-xs text-foreground font-medium">{card.deliveryDate}</p>
-              </div>
+              <DetailField
+                icon={<IconCalendar size={12} />}
+                label="Entrega"
+                value={card.deliveryDate}
+              />
 
-              <div className="col-span-2">
-                <p className="text-[10px] text-muted uppercase font-bold flex items-center gap-1 mb-1">
-                  <IconCreditCard size={12} /> Pagamento
-                </p>
-                <p className="text-xs text-foreground font-medium">
-                  {card.paymentMethodName}
-                  {card.installments > 0 ? ` — ${card.installments}x` : ' — À vista'}
-                </p>
-              </div>
+              <DetailField
+                icon={<IconCreditCard size={12} />}
+                label="Pagamento"
+                value={`${card.paymentMethodName}${card.installments > 0 ? ` — ${card.installments}x` : ' — À vista'}`}
+                className="col-span-2"
+              />
             </div>
           )}
         </div>

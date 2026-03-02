@@ -14,7 +14,7 @@ export interface KanbanColumnConfig<TCard extends KanbanBaseCard> {
   headerAction?: ReactNode;
 }
 
-export type KanbanMoveActionType = 'confirm' | 'reason' | 'send_proposal' | 'edit_first' | null;
+export type KanbanMoveActionType = 'confirm' | 'reason' | 'send_proposal' | 'edit_first' | 'route' | null;
 
 export interface KanbanMoveResult {
   allowed: boolean;

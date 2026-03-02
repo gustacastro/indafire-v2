@@ -2,6 +2,8 @@ import {
   IconLayoutGrid,
   IconSettings,
   IconStore,
+  IconTruck,
+  IconWrench,
 } from '@/components/icons';
 import { MenuGroup, MenuItem } from '@/types/contexts/sidebar.types';
 import { NormalizedPermissions } from '@/types/contexts/auth.types';
@@ -30,6 +32,38 @@ export const menuConfig: MenuGroup[] = [
             label: 'Orçamentos',
             href: '/quotes',
             permission: { module: 'quotes', action: 'view' },
+          },
+        ],
+      },
+      {
+        key: 'logistics',
+        icon: IconTruck,
+        label: 'Logística',
+        subItems: [
+          {
+            label: 'Painel de Retirada',
+            href: '/logistics/pickup-panel',
+            permission: { module: 'job_tasks', action: 'view' },
+          },
+          {
+            label: 'Painel de Entrega',
+            href: '/logistics/delivery-panel',
+            permissions: [
+              { module: 'job_tasks', action: 'view' },
+              { module: 'product_tasks', action: 'view' },
+            ],
+          },
+        ],
+      },
+      {
+        key: 'workshop',
+        icon: IconWrench,
+        label: 'Oficina',
+        subItems: [
+          {
+            label: 'Painel',
+            href: '/workshop/panel',
+            permission: { module: 'job_tasks', action: 'view' },
           },
         ],
       },
@@ -96,7 +130,13 @@ export function filterMenuByPermissions(
     .map((group) => {
       const filteredItems = group.items
         .map((item) => {
-          if (item.permission) {
+          if (item.permissions) {
+            const hasAny = item.permissions.some((p) => {
+              const mp = permissions[p.module];
+              return mp && mp[p.action as keyof typeof mp];
+            });
+            if (!hasAny) return null;
+          } else if (item.permission) {
             const modulePerm = permissions[item.permission.module];
             const action = item.permission.action as keyof typeof modulePerm;
             if (!modulePerm || !modulePerm[action]) return null;
@@ -104,6 +144,12 @@ export function filterMenuByPermissions(
 
           if (item.subItems) {
             const filteredSubItems = item.subItems.filter((sub) => {
+              if (sub.permissions) {
+                return sub.permissions.some((p) => {
+                  const mp = permissions[p.module];
+                  return mp && mp[p.action as keyof typeof mp];
+                });
+              }
               if (!sub.permission) return true;
               const modulePerm = permissions[sub.permission.module];
               const action = sub.permission.action as keyof typeof modulePerm;
