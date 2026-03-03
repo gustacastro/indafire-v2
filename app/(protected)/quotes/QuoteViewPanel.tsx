@@ -19,6 +19,7 @@ import {
   IconAlertCircle,
 } from '@/components/icons';
 import { formatApiCurrency } from '@/utils/currency';
+import { formatDateBR } from '@/utils/datetime';
 import { formatCpf, formatCnpj } from '@/utils/document';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -94,12 +95,6 @@ function QuoteItemsSection({ title, items, onImageClick, hideValues }: QuoteItem
       </ViewSection>
     </>
   );
-}
-
-function formatDateBR(dateStr: string): string {
-  if (!dateStr) return '—';
-  const [year, month, day] = dateStr.split('-');
-  return `${day}/${month}/${year}`;
 }
 
 export function QuoteViewPanel({ quoteId, isOpen, onClose, footerButtons, hideFinancials, onDataChanged }: QuoteViewPanelProps) {

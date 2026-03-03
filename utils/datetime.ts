@@ -15,6 +15,12 @@ export function formatDateTime(date: Date): string {
   return `${dateStr} — ${timeStr}`;
 }
 
+export function formatDateBR(dateStr: string): string {
+  if (!dateStr) return '—';
+  const [year, month, day] = dateStr.split('-');
+  return `${day}/${month}/${year}`;
+}
+
 export function formatDateTimeBR(isoString: string): string {
   if (!isoString) return '—';
   const date = new Date(isoString);

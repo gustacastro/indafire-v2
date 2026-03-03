@@ -1,4 +1,5 @@
 import { api } from '@/lib/axios';
+import axios from 'axios';
 import { getProductById, Product } from '@/app/(protected)/products/products.facade';
 import { getJobById, Job } from '@/app/(protected)/jobs/jobs.facade';
 import { getClientById, Client, getClientName, getClientDocument, getClientType, buildGoogleMapsUrl, formatAddressShort } from '@/app/(protected)/clients/clients.facade';
@@ -240,6 +241,12 @@ export function getQuoteStatusVariant(status: string): StatusBadgeVariant {
   return QUOTE_STATUS_VARIANTS[status] ?? 'muted';
 }
 
+export const PRINTABLE_STATUSES = ['PENDING_APPROVAL', 'DECLINED', 'SUBMITTED', 'APPROVED'];
+
+export function canPrintQuote(status: string): boolean {
+  return PRINTABLE_STATUSES.includes(status);
+}
+
 export async function fetchQuotes(params: FetchQuotesParams = {}): Promise<QuotesResponse> {
   const { page = 1, perPage = 10, search = '' } = params;
   const query = new URLSearchParams();
@@ -430,4 +437,97 @@ export async function enrichDivergencies(divergencies: Divergency[]): Promise<En
     created_by_name: userMap.get(d.created_by) ?? 'Usuário desconhecido',
     resolved_by_name: d.resolved_by ? (userMap.get(d.resolved_by) ?? 'Usuário desconhecido') : null,
   }));
+}
+
+export async function generateQuotePdf(quoteId: string): Promise<Blob> {
+  const enriched = await getQuoteEnriched(quoteId);
+  const creator = await getUserById(enriched.detail.creator_id).catch(() => null);
+
+  const payload: QuotePdfPayload = buildQuotePdfPayload(enriched, creator?.name ?? 'Usuário desconhecido');
+
+  const response = await axios.post('/api/quotes/pdf', payload, {
+    responseType: 'blob',
+  });
+
+  return response.data;
+}
+
+function buildQuotePdfPayload(enriched: EnrichedQuote, creatorName: string): QuotePdfPayload {
+  const clientName = getClientName(enriched.client);
+
+  const paymentMethod = enriched.paymentMethod
+    ? {
+        name: enriched.paymentMethod.name,
+        provider: enriched.paymentMethod.provider,
+        methodInfo: enriched.paymentMethod.method_info,
+        allowInstallments: enriched.paymentMethod.allow_installments,
+        installmentCount: enriched.paymentMethod.installment_count,
+      }
+    : null;
+
+  const products = enriched.products.map((p) => ({
+    name: p.product.info.name,
+    description: p.product.info.description ?? '',
+    amount: p.amount,
+    unitaryValue: p.unitary_value,
+    totalValue: p.unitary_value * p.amount,
+  }));
+
+  const jobs = enriched.jobs.map((j) => ({
+    name: j.job.service_name,
+    description: j.job.technical_description ?? '',
+    amount: j.amount,
+    unitaryValue: j.unitary_value,
+    totalValue: j.unitary_value * j.amount,
+  }));
+
+  return {
+    quoteCode: enriched.detail.quote_code,
+    clientName,
+    creatorName,
+    freight: enriched.detail.freight,
+    discountPercentage: enriched.detail.discount_percentage,
+    discountValue: enriched.detail.discount_value,
+    totalItemsValue: enriched.detail.total_items_value,
+    totalQuoteValue: enriched.detail.total_quote_value,
+    netValue: enriched.detail.net_value,
+    installments: enriched.detail.installments,
+    paymentMethod,
+    products,
+    jobs,
+  };
+}
+
+interface QuotePdfPayload {
+  quoteCode: number;
+  clientName: string;
+  creatorName: string;
+  freight: number;
+  discountPercentage: number;
+  discountValue: number;
+  totalItemsValue: number;
+  totalQuoteValue: number;
+  netValue: number;
+  installments: number;
+  paymentMethod: {
+    name: string;
+    provider: string;
+    methodInfo: string;
+    allowInstallments: boolean;
+    installmentCount: number | null;
+  } | null;
+  products: {
+    name: string;
+    description: string;
+    amount: number;
+    unitaryValue: number;
+    totalValue: number;
+  }[];
+  jobs: {
+    name: string;
+    description: string;
+    amount: number;
+    unitaryValue: number;
+    totalValue: number;
+  }[];
 }

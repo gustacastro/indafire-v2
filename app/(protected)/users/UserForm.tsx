@@ -228,6 +228,7 @@ export function UserForm({ mode, userId }: UserFormProps) {
               <FormField
                 label="Senha"
                 type="password"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setPasswordError(''); setConfirmPasswordError(''); }}
                 placeholder={
@@ -241,6 +242,7 @@ export function UserForm({ mode, userId }: UserFormProps) {
               <FormField
                 label="Confirmar senha"
                 type="password"
+                autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => { setConfirmPassword(e.target.value); setConfirmPasswordError(''); setPasswordError(''); }}
                 placeholder={

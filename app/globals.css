@@ -41,6 +41,9 @@
   --c-sidebar-muted: #64748b;
 
   --c-success: #22c55e;
+  --c-warning: #f59e0b;
+  --c-error: #ef4444;
+  --c-info: #3b82f6;
   --c-overlay: rgba(15, 23, 42, 0.6);
 
   --c-dot-grid: #cbd5e1;
@@ -98,6 +101,9 @@
   --c-sidebar-muted: #64748b;
 
   --c-success: #22c55e;
+  --c-warning: #fbbf24;
+  --c-error: #f87171;
+  --c-info: #60a5fa;
   --c-overlay: rgba(15, 23, 42, 0.6);
 
   --c-dot-grid: rgba(255, 255, 255, 0.055);
@@ -154,6 +160,9 @@
   --color-sidebar-muted: var(--c-sidebar-muted);
 
   --color-success: var(--c-success);
+  --color-warning: var(--c-warning);
+  --color-error: var(--c-error);
+  --color-info: var(--c-info);
   --color-overlay: var(--c-overlay);
   --color-dot-grid: var(--c-dot-grid);
   --color-blob-primary: var(--c-blob-primary);

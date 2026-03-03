@@ -17,4 +17,5 @@ export interface SendProposalModalProps {
     includePhotos: boolean
   ) => void;
   sendLoading: boolean;
+  isResend?: boolean;
 }

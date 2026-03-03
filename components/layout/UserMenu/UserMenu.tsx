@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useTheme } from '@/hooks/useTheme';
@@ -21,6 +22,7 @@ interface UserMenuProps {
 export function UserMenu({ isExpanded }: UserMenuProps) {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -59,6 +61,7 @@ export function UserMenu({ isExpanded }: UserMenuProps) {
             icon={<IconUser size={16} />}
             label="Meu Perfil"
             variant="default"
+            onClick={() => { router.push('/profile'); setIsOpen(false); }}
           />
           <MenuButton
             icon={theme === 'dark' ? <IconSun size={16} /> : <IconMoon size={16} />}

@@ -9,6 +9,7 @@ import { KanbanBoard } from '@/components/ui/KanbanBoard/KanbanBoard';
 import { KanbanFilterBar } from '@/components/ui/KanbanBoard/KanbanFilterBar';
 import { Button } from '@/components/ui/Button/Button';
 import { ModalConfirm } from '@/components/ui/Modal/ModalConfirm';
+import { PdfPreviewModal } from '@/components/ui/PdfPreviewModal/PdfPreviewModal';
 import { SendProposalModal } from '@/components/ui/Modal/SendProposalModal';
 import { TextArea } from '@/components/ui/TextArea/TextArea';
 import { ItemSelectorPanel } from '@/components/ui/ItemSelector/ItemSelectorPanel';
@@ -29,6 +30,7 @@ import {
   findClientByDocument,
 } from './commercial-panel.facade';
 import { deleteQuote } from '@/app/(protected)/quotes/quotes.facade';
+import { generateQuotePdf } from '@/app/(protected)/quotes/quotes.facade';
 import {
   fetchClients,
   getClientName,
@@ -77,6 +79,8 @@ export function CommercialPanel() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [sendProposalModal, setSendProposalModal] = useState<PendingMove | null>(null);
   const [sendProposalLoading, setSendProposalLoading] = useState(false);
+  const [resendProposalModal, setResendProposalModal] = useState<QuoteKanbanCardType | null>(null);
+  const [resendProposalLoading, setResendProposalLoading] = useState(false);
 
   const [clientSearchOpen, setClientSearchOpen] = useState(false);
   const [clientSearchValue, setClientSearchValue] = useState('');
@@ -92,6 +96,10 @@ export function CommercialPanel() {
   const [editBeforeMoveModal, setEditBeforeMoveModal] = useState<{ quoteId: string; quoteCode: number } | null>(null);
   const [moveAfterEditConfirm, setMoveAfterEditConfirm] = useState<{ quoteId: string; quoteCode: number } | null>(null);
   const [moveAfterEditLoading, setMoveAfterEditLoading] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [pdfQuoteCode, setPdfQuoteCode] = useState<number | null>(null);
 
   useEffect(() => {
     if (!authLoading && !canView) router.replace('/dashboard');
@@ -440,6 +448,47 @@ export function CommercialPanel() {
     setSendProposalLoading(false);
   }
 
+  async function handleResendProposal(
+    selectedEmails: string[],
+    selectedPhones: string[],
+    includePhotos: boolean
+  ) {
+    if (!resendProposalModal) return;
+    const card = resendProposalModal;
+    setResendProposalLoading(true);
+    setResendProposalModal(null);
+
+    try {
+      if (selectedPhones.length > 0) {
+        await toast.promise(
+          sendProposalWhatsapp(card.id, selectedPhones, includePhotos),
+          {
+            loading: 'Reenviando proposta via WhatsApp...',
+            success: 'Proposta reenviada via WhatsApp.',
+            error: (err: unknown) =>
+              (err as { response?: { data?: { detail?: { message?: string } } } })
+                ?.response?.data?.detail?.message ?? 'Erro ao reenviar proposta via WhatsApp.',
+          }
+        );
+      }
+
+      if (selectedEmails.length > 0) {
+        await toast.promise(
+          sendProposalEmail(card.id, selectedEmails, includePhotos),
+          {
+            loading: 'Reenviando proposta via e-mail...',
+            success: 'Proposta reenviada via e-mail.',
+            error: (err: unknown) =>
+              (err as { response?: { data?: { detail?: { message?: string } } } })
+                ?.response?.data?.detail?.message ?? 'Erro ao reenviar proposta via e-mail.',
+          }
+        );
+      }
+    } finally {
+      setResendProposalLoading(false);
+    }
+  }
+
   function handleDeclineRequest(card: QuoteKanbanCardType) {
     const sourceColId = columns.find((col) =>
       col.cards.some((c) => c.id === card.id)
@@ -476,6 +525,26 @@ export function CommercialPanel() {
     }
   }
 
+  async function handlePrintRequest(card: QuoteKanbanCardType) {
+    setPdfQuoteCode(card.quoteCode);
+    setPdfModalOpen(true);
+    setPdfLoading(true);
+    setPdfUrl(null);
+    try {
+      const blob = await generateQuotePdf(card.id);
+      const url = URL.createObjectURL(blob);
+      setPdfUrl(url);
+    } catch (err: unknown) {
+      toast.error(
+        (err as { response?: { data?: { detail?: { message?: string } } } })
+          ?.response?.data?.detail?.message ?? 'Erro ao gerar PDF do orçamento.',
+      );
+      setPdfModalOpen(false);
+    } finally {
+      setPdfLoading(false);
+    }
+  }
+
   function renderCard(props: KanbanCardComponentProps<QuoteKanbanCardType>) {
     return (
       <QuoteKanbanCard
@@ -484,6 +553,8 @@ export function CommercialPanel() {
         onToggleExpand={() => toggleCard(props.card.id)}
         onDeclineRequest={handleDeclineRequest}
         onViewRequest={(card) => setViewPanelId(card.id)}
+        onResendProposal={(card) => setResendProposalModal(card)}
+        onPrintRequest={handlePrintRequest}
         onEditRequest={canEdit ? (card) => {
           if (card.status === 'IN_ATTENDANCE') {
             router.push(`/quotes/${card.id}/edit?returnTo=${encodeURIComponent(`/commercial-panel?editedQuoteId=${card.id}&editedQuoteCode=${card.quoteCode}`)}`);
@@ -616,6 +687,21 @@ export function CommercialPanel() {
           onSkipAndMove={handleSkipAndMove}
           onSendAndMove={handleSendAndMove}
           sendLoading={sendProposalLoading}
+        />
+      )}
+
+      {resendProposalModal && (
+        <SendProposalModal
+          isOpen
+          onClose={() => setResendProposalModal(null)}
+          quoteId={resendProposalModal.id}
+          quoteCode={resendProposalModal.quoteCode}
+          clientName={resendProposalModal.clientName}
+          clientId={resendProposalModal.clientId}
+          onSkipAndMove={() => setResendProposalModal(null)}
+          onSendAndMove={handleResendProposal}
+          sendLoading={resendProposalLoading}
+          isResend
         />
       )}
 
@@ -824,6 +910,21 @@ export function CommercialPanel() {
         cancelLabel="Cancelar"
         onConfirm={handleMoveAfterEdit}
         confirmLoading={moveAfterEditLoading}
+      />
+
+      <PdfPreviewModal
+        isOpen={pdfModalOpen}
+        onClose={() => {
+          setPdfModalOpen(false);
+          if (pdfUrl) {
+            URL.revokeObjectURL(pdfUrl);
+            setPdfUrl(null);
+          }
+        }}
+        title={pdfQuoteCode ? `Orçamento #${pdfQuoteCode}` : 'Orçamento'}
+        subtitle={`Gerado em ${new Date().toLocaleDateString('pt-BR')}`}
+        pdfUrl={pdfUrl}
+        isLoading={pdfLoading}
       />
     </div>
   );

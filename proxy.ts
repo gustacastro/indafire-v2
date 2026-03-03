@@ -3,7 +3,24 @@ import { NormalizedPermissions } from '@/types/contexts/auth.types';
 
 const AUTH_ROUTES = ['/login'];
 const PUBLIC_ROUTES = ['/login'];
-const PERMISSION_FREE_ROUTES = ['/dashboard'];
+const PERMISSION_FREE_ROUTES = ['/dashboard', '/profile'];
+const KNOWN_PROTECTED_ROUTES = [
+  '/dashboard',
+  '/profile',
+  '/users',
+  '/clients',
+  '/suppliers',
+  '/products',
+  '/quotes',
+  '/jobs',
+  '/taxes',
+  '/bank-accounts',
+  '/payment-methods',
+  '/commercial-panel',
+  '/logistics',
+  '/workshop',
+  '/whatsapp',
+];
 
 const ROUTE_MODULE_MAP: Record<string, string> = {
   taxes: 'tax_categories',
@@ -75,6 +92,12 @@ export function proxy(request: NextRequest) {
   const isPublicRoute = PUBLIC_ROUTES.some((route) => pathname.startsWith(route));
 
   if (isPublicRoute) {
+    return NextResponse.next();
+  }
+
+  const isKnownRoute = KNOWN_PROTECTED_ROUTES.some((route) => pathname.startsWith(route));
+
+  if (!isKnownRoute) {
     return NextResponse.next();
   }
 

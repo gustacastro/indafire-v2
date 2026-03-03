@@ -8,6 +8,7 @@ import { FilterBar } from '@/components/data/FilterBar/FilterBar';
 import { DataTable } from '@/components/data/DataTable/DataTable';
 import { Pagination } from '@/components/data/Pagination/Pagination';
 import { ModalConfirm } from '@/components/ui/Modal/ModalConfirm';
+import { PdfPreviewModal } from '@/components/ui/PdfPreviewModal/PdfPreviewModal';
 import { Button } from '@/components/ui/Button/Button';
 import { CsvExportButton } from '@/components/ui/CsvExportButton/CsvExportButton';
 import { IconClipboardCheck, IconPlus, IconTrash, IconEdit } from '@/components/icons';
@@ -16,6 +17,7 @@ import {
   QuoteListItem,
   getQuoteStatusLabel,
   deleteQuote,
+  generateQuotePdf,
 } from './quotes.facade';
 import { getQuotesColumns, getDefaultVisibleColumns } from './quotes.columns';
 import { QuoteViewPanel } from './QuoteViewPanel';
@@ -46,6 +48,10 @@ export function Quotes() {
   const [deleteTarget, setDeleteTarget] = useState<QuoteListItem | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [viewingQuote, setViewingQuote] = useState<QuoteListItem | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [pdfQuoteCode, setPdfQuoteCode] = useState<number | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 400);
@@ -88,6 +94,26 @@ export function Quotes() {
     setViewingQuote(quote);
   }
 
+  async function handlePrint(quote: QuoteListItem) {
+    setPdfQuoteCode(quote.quote_code);
+    setPdfModalOpen(true);
+    setPdfLoading(true);
+    setPdfUrl(null);
+    try {
+      const blob = await generateQuotePdf(quote.id);
+      const url = URL.createObjectURL(blob);
+      setPdfUrl(url);
+    } catch (err: unknown) {
+      toast.error(
+        (err as { response?: { data?: { detail?: { message?: string } } } })
+          ?.response?.data?.detail?.message ?? 'Erro ao gerar PDF do orçamento.',
+      );
+      setPdfModalOpen(false);
+    } finally {
+      setPdfLoading(false);
+    }
+  }
+
   function handleDeleteRequest(quote: QuoteListItem) {
     setDeleteTarget(quote);
   }
@@ -123,13 +149,14 @@ export function Quotes() {
       canDelete,
       handleView,
       canView,
+      handlePrint,
     ),
     [canEdit, canDelete, canView],
   );
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>(() =>
     getDefaultVisibleColumns(
-      getQuotesColumns(() => {}, () => {}, canEdit, canDelete, undefined, canView),
+      getQuotesColumns(() => {}, () => {}, canEdit, canDelete, undefined, canView, undefined),
     ),
   );
 
@@ -266,6 +293,21 @@ export function Quotes() {
               }]
             : []),
         ]}
+      />
+
+      <PdfPreviewModal
+        isOpen={pdfModalOpen}
+        onClose={() => {
+          setPdfModalOpen(false);
+          if (pdfUrl) {
+            URL.revokeObjectURL(pdfUrl);
+            setPdfUrl(null);
+          }
+        }}
+        title={pdfQuoteCode ? `Orçamento #${pdfQuoteCode}` : 'Orçamento'}
+        subtitle={`Gerado em ${new Date().toLocaleDateString('pt-BR')}`}
+        pdfUrl={pdfUrl}
+        isLoading={pdfLoading}
       />
     </div>
   );

@@ -4,7 +4,9 @@ import { SendProposalModalProps, ContactItem } from '@/types/ui/send-proposal-mo
 import { Modal } from '@/components/ui/Modal/Modal';
 import { Button } from '@/components/ui/Button/Button';
 import { Checkbox } from '@/components/ui/Checkbox/Checkbox';
+import { Notification } from '@/components/ui/Notification/Notification';
 import { fetchClientContacts } from '@/app/(protected)/commercial-panel/commercial-panel.facade';
+import { fetchWhatsappStatus } from '@/app/(protected)/whatsapp/whatsapp-settings.facade';
 import { formatPhone } from '@/utils/document';
 import { TagChip } from '../TagChip/TagChip';
 
@@ -18,6 +20,7 @@ export function SendProposalModal({
   onSkipAndMove,
   onSendAndMove,
   sendLoading,
+  isResend = false,
 }: SendProposalModalProps) {
   const [emails, setEmails] = useState<ContactItem[]>([]);
   const [phones, setPhones] = useState<ContactItem[]>([]);
@@ -25,6 +28,7 @@ export function SendProposalModal({
   const [selectedPhones, setSelectedPhones] = useState<string[]>([]);
   const [includePhotos, setIncludePhotos] = useState(false);
   const [loadingContacts, setLoadingContacts] = useState(false);
+  const [whatsappConnected, setWhatsappConnected] = useState(true);
 
   useEffect(() => {
     if (!isOpen) {
@@ -33,16 +37,22 @@ export function SendProposalModal({
       setIncludePhotos(false);
       setEmails([]);
       setPhones([]);
+      setWhatsappConnected(true);
       return;
     }
 
     if (!clientId) return;
 
     setLoadingContacts(true);
-    fetchClientContacts(clientId)
-      .then(({ emails: e, phones: p }) => {
+
+    Promise.all([
+      fetchClientContacts(clientId),
+      fetchWhatsappStatus().catch(() => ({ whatsapp_is_connected: false, whatsapp_number: '' })),
+    ])
+      .then(([{ emails: e, phones: p }, whatsappStatus]) => {
         setEmails(e);
         setPhones(p);
+        setWhatsappConnected(whatsappStatus.whatsapp_is_connected);
       })
       .finally(() => setLoadingContacts(false));
   }, [isOpen, clientId]);
@@ -65,7 +75,7 @@ export function SendProposalModal({
     <Modal isOpen={isOpen} onClose={onClose} size="xl">
       <div className="px-(--spacing-lg) py-(--spacing-md) border-b border-border bg-secondary flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-heading">Enviar Proposta</h2>
+          <h2 className="text-lg font-bold text-heading">{isResend ? 'Reenviar Proposta' : 'Enviar Proposta'}</h2>
           <p className="text-xs text-muted mt-0.5">Orçamento #{quoteCode}</p>
         </div>
       </div>
@@ -86,6 +96,14 @@ export function SendProposalModal({
               <div className="px-(--spacing-md) py-(--spacing-sm) border-b border-border">
                 <h3 className="text-sm font-bold text-heading">WhatsApp</h3>
               </div>
+              {!whatsappConnected && (
+                <div className="p-(--spacing-sm)">
+                  <Notification
+                    variant="warning"
+                    message="WhatsApp está desconectado."
+                  />
+                </div>
+              )}
               <div className="p-(--spacing-xs)">
                 {phones.length > 0 ? (
                   phones.map((tel) => (
@@ -94,6 +112,7 @@ export function SendProposalModal({
                         checked={selectedPhones.includes(tel.value)}
                         onChange={() => togglePhone(tel.value)}
                         label={`${formatPhone(tel.value)}${tel.department ? ` — ${tel.department}` : ''}`}
+                        disabled={!whatsappConnected}
                       />
                     </div>
                   ))
@@ -182,14 +201,20 @@ export function SendProposalModal({
           variant="primary"
           size="sm"
           nowrap
-          disabled={sendLoading}
+          disabled={sendLoading || (isResend && !hasSelection)}
           onClick={() =>
             hasSelection
               ? onSendAndMove(selectedEmails, selectedPhones, includePhotos)
               : onSkipAndMove()
           }
         >
-          {sendLoading ? 'Enviando...' : hasSelection ? 'Enviar proposta' : 'Pular envio de proposta'}
+          {sendLoading
+            ? (isResend ? 'Reenviando...' : 'Enviando...')
+            : isResend
+              ? 'Reenviar proposta'
+              : hasSelection
+                ? 'Enviar proposta'
+                : 'Pular envio de proposta'}
         </Button>
       </div>
     </Modal>

@@ -18,16 +18,21 @@ import {
   IconEdit,
   IconTrash,
   IconAlertCircle,
+  IconRefreshCw,
+  IconPrinter,
 } from '@/components/icons';
 import { DetailField } from '@/components/ui/DetailField/DetailField';
 import { formatApiCurrency } from '@/utils/currency';
 import { getInitials } from '@/utils/initials';
+import { canPrintQuote } from '@/app/(protected)/quotes/quotes.facade';
 
 interface QuoteKanbanCardProps extends KanbanCardComponentProps<QuoteKanbanCardType> {
   onDeclineRequest?: (card: QuoteKanbanCardType) => void;
   onViewRequest?: (card: QuoteKanbanCardType) => void;
   onEditRequest?: (card: QuoteKanbanCardType) => void;
   onDeleteRequest?: (card: QuoteKanbanCardType) => void;
+  onResendProposal?: (card: QuoteKanbanCardType) => void;
+  onPrintRequest?: (card: QuoteKanbanCardType) => void;
 }
 
 export function QuoteKanbanCard({
@@ -42,6 +47,8 @@ export function QuoteKanbanCard({
   onViewRequest,
   onEditRequest,
   onDeleteRequest,
+  onResendProposal,
+  onPrintRequest,
 }: QuoteKanbanCardProps) {
   const nextColLabel = getNextColumnLabel(nextColumnId);
 
@@ -87,12 +94,30 @@ export function QuoteKanbanCard({
                   icon: <IconEye size={15} />,
                   onClick: () => onViewRequest?.(card),
                 },
+                ...(onPrintRequest && canPrintQuote(card.status)
+                  ? [
+                      {
+                        label: 'Imprimir orçamento',
+                        icon: <IconPrinter size={15} />,
+                        onClick: () => onPrintRequest(card),
+                      },
+                    ]
+                  : []),
                 ...(onEditRequest && card.status !== 'APPROVED'
                   ? [
                       {
                         label: 'Editar orçamento',
                         icon: <IconEdit size={15} />,
                         onClick: () => onEditRequest(card),
+                      },
+                    ]
+                  : []),
+                ...(card.status === 'SUBMITTED' && onResendProposal
+                  ? [
+                      {
+                        label: 'Reenviar proposta',
+                        icon: <IconRefreshCw size={15} />,
+                        onClick: () => onResendProposal(card),
                       },
                     ]
                   : []),

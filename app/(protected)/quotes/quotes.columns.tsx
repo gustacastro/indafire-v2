@@ -2,15 +2,10 @@ import { ColumnDef } from '@/types/ui/data-table.types';
 import { RowAction } from '@/types/ui/row-actions.types';
 import { RowActions } from '@/components/data/RowActions/RowActions';
 import { StatusBadge } from '@/components/ui/StatusBadge/StatusBadge';
-import { IconEdit, IconTrash, IconEye } from '@/components/icons';
+import { IconEdit, IconTrash, IconEye, IconPrinter } from '@/components/icons';
 import { formatApiCurrency } from '@/utils/currency';
-import { QuoteListItem, getQuoteStatusLabel, getQuoteStatusVariant } from './quotes.facade';
-
-function formatDateBR(dateStr: string): string {
-  if (!dateStr) return '—';
-  const [year, month, day] = dateStr.split('-');
-  return `${day}/${month}/${year}`;
-}
+import { formatDateBR } from '@/utils/datetime';
+import { QuoteListItem, getQuoteStatusLabel, getQuoteStatusVariant, canPrintQuote } from './quotes.facade';
 
 export function getQuotesColumns(
   onEdit: (quote: QuoteListItem) => void,
@@ -19,6 +14,7 @@ export function getQuotesColumns(
   canDelete: boolean,
   onView?: (quote: QuoteListItem) => void,
   canView?: boolean,
+  onPrint?: (quote: QuoteListItem) => void,
 ): ColumnDef<QuoteListItem>[] {
   const hasActions = canView || canEdit || canDelete;
 
@@ -137,6 +133,9 @@ export function getQuotesColumns(
         const actions: RowAction[] = [];
         if (canView && onView) {
           actions.push({ label: 'Visualizar', icon: <IconEye size={14} />, onClick: () => onView(row) });
+        }
+        if (onPrint && canPrintQuote(row.status)) {
+          actions.push({ label: 'Imprimir', icon: <IconPrinter size={14} />, onClick: () => onPrint(row) });
         }
         if (canEdit && row.status !== 'APPROVED') {
           actions.push({ label: 'Editar', icon: <IconEdit size={14} />, onClick: () => onEdit(row) });
