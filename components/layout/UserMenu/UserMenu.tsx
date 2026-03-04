@@ -12,6 +12,7 @@ import {
   IconMoon,
   IconLogOut,
   IconChevronDown,
+  IconScrollText,
 } from '@/components/icons';
 import { getInitials } from '@/utils/initials';
 
@@ -69,6 +70,17 @@ export function UserMenu({ isExpanded }: UserMenuProps) {
             variant="default"
             onClick={toggleTheme}
           />
+
+          {(process.env.NEXT_PUBLIC_ENVIRONMENT === 'development' ||
+            process.env.NEXT_PUBLIC_ENVIRONMENT === 'internal' ||
+            process.env.NEXT_PUBLIC_ENVIRONMENT === 'production') && (
+            <MenuButton
+              icon={<IconScrollText size={16} />}
+              label="Changelog"
+              variant="default"
+              onClick={() => { router.push('/changelog'); setIsOpen(false); }}
+            />
+          )}
 
           <div className="h-px bg-border my-1" />
 

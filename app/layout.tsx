@@ -59,7 +59,7 @@ export default async function RootLayout({
               <Toaster position="top-right" containerStyle={{ zIndex: 9999 }} />
               {children}
               <SystemBackground />
-              <EnvironmentBadge environment={process.env.ENVIRONMENT} />
+              <EnvironmentBadge environment={process.env.NEXT_PUBLIC_ENVIRONMENT} />
             </SidebarProvider>
           </AuthProvider>
         </ThemeProvider>

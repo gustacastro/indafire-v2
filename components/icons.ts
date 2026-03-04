@@ -96,3 +96,6 @@ export { Printer as IconPrinter } from 'lucide-react';
 export { Home as IconHome } from 'lucide-react';
 export { TriangleAlert as IconTriangleAlert } from 'lucide-react';
 export { WifiOff as IconWifiOff } from 'lucide-react';
+export { GitCommitHorizontal as IconCommit } from 'lucide-react';
+export { GitBranch as IconGitBranch } from 'lucide-react';
+export { ScrollText as IconScrollText } from 'lucide-react';
